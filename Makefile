@@ -146,8 +146,8 @@ docker-logs: ## Follow Docker Compose logs
 .PHONY: deploy deploy-web deploy-api
 deploy: deploy-web deploy-api ## Deploy frontend (Vercel) and backend (Render)
 
-deploy-web: build-web ## Deploy frontend to Vercel (requires Vercel CLI)
-	cd $(WEB_DIR) && vercel --prod
+deploy-web: build-web ## Deploy frontend to Vercel (requires: pnpm dlx vercel login && vercel link)
+	cd $(WEB_DIR) && pnpm dlx vercel --prod
 
 deploy-api: ## Print Render backend deploy instructions
 	@echo "Backend deploys via Render using render.yaml."

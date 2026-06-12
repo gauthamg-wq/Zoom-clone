@@ -4,20 +4,20 @@
 
 Build a Zoom-like video conferencing platform using:
 
-* Frontend: Next.js \+ React \+ TypeScript  
-* Backend: FastAPI (Python)  
-* Database: SQLite
+- Frontend: Next.js \+ React \+ TypeScript
+- Backend: FastAPI (Python)
+- Database: SQLite
 
 The application should support:
 
-* Dashboard/Home Page  
-* Instant Meeting Creation  
-* Join Meeting  
-* Schedule Meeting  
-* Video Conferencing Room  
-* Participant Management  
-* Meeting History  
-* Upcoming Meetings
+- Dashboard/Home Page
+- Instant Meeting Creation
+- Join Meeting
+- Schedule Meeting
+- Video Conferencing Room
+- Participant Management
+- Meeting History
+- Upcoming Meetings
 
 ---
 
@@ -27,29 +27,29 @@ The application should support:
 
 ### **Core Technologies**
 
-* Next.js  
-* React  
-* TypeScript  
-* Tailwind CSS
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
 
 ### **UI Libraries**
 
-* shadcn/ui  
-* Radix UI
+- shadcn/ui
+- Radix UI
 
 ### **Forms & Validation**
 
-* React Hook Form  
-* Zod
+- React Hook Form
+- Zod
 
 ### **Date Handling**
 
-* date-fns  
-* Day.js
+- date-fns
+- Day.js
 
 ### **Icons**
 
-* lucide-react
+- lucide-react
 
 ### **Browser APIs**
 
@@ -59,8 +59,8 @@ navigator.mediaDevices.getUserMedia()
 
 Used for:
 
-* Camera access  
-* Microphone access
+- Camera access
+- Microphone access
 
 #### **Screen Sharing**
 
@@ -68,9 +68,9 @@ navigator.mediaDevices.getDisplayMedia()
 
 Used for:
 
-* Screen sharing  
-* Window sharing  
-* Tab sharing
+- Screen sharing
+- Window sharing
+- Tab sharing
 
 #### **WebRTC**
 
@@ -78,17 +78,17 @@ RTCPeerConnection
 
 Used for:
 
-* Audio communication  
-* Video communication  
-* Peer-to-peer media transmission
+- Audio communication
+- Video communication
+- Peer-to-peer media transmission
 
 #### **WebSocket**
 
 Used for:
 
-* Real-time room communication  
-* Signaling messages  
-* Participant state updates
+- Real-time room communication
+- Signaling messages
+- Participant state updates
 
 ---
 
@@ -96,27 +96,27 @@ Used for:
 
 ### **Framework**
 
-* FastAPI
+- FastAPI
 
 ### **Database**
 
-* SQLite
+- SQLite
 
 ### **ORM**
 
-* SQLAlchemy
+- SQLAlchemy
 
 ### **Migrations**
 
-* Alembic (Optional)
+- Alembic (Optional)
 
 ### **Validation**
 
-* Pydantic
+- Pydantic
 
 ### **Realtime Communication**
 
-* FastAPI WebSockets
+- FastAPI WebSockets
 
 ---
 
@@ -126,11 +126,11 @@ Used for:
 
 Use HTTP for:
 
-* Creating meetings  
-* Scheduling meetings  
-* Fetching dashboard data  
-* Validating meeting IDs  
-* Updating database records
+- Creating meetings
+- Scheduling meetings
+- Fetching dashboard data
+- Validating meeting IDs
+- Updating database records
 
 Examples:
 
@@ -144,13 +144,13 @@ PATCH /meetings
 
 Use WebSockets for:
 
-* Participant joined notifications  
-* Participant left notifications  
-* Signaling messages  
-* Mute/unmute events  
-* Video on/off events  
-* Chat messages  
-* Host controls
+- Participant joined notifications
+- Participant left notifications
+- Signaling messages
+- Mute/unmute events
+- Video on/off events
+- Chat messages
+- Host controls
 
 Examples:
 
@@ -168,9 +168,9 @@ remove participant
 
 Use WebRTC for:
 
-* Audio streaming  
-* Video streaming  
-* Screen sharing
+- Audio streaming
+- Video streaming
+- Screen sharing
 
 Important:
 
@@ -191,8 +191,8 @@ users
 id  
 name  
 email  
-avatar\_url  
-created\_at
+avatar_url  
+created_at
 
 ---
 
@@ -201,15 +201,15 @@ created\_at
 meetings  
 \---------  
 id  
-meeting\_code  
+meeting_code  
 title  
 description  
-host\_user\_id  
-scheduled\_start\_time  
-duration\_minutes  
+host_user_id  
+scheduled_start_time  
+duration_minutes  
 status  
-invite\_link  
-created\_at
+invite_link  
+created_at
 
 Status:
 
@@ -224,14 +224,14 @@ ended
 participants  
 \-------------  
 id  
-meeting\_id  
-display\_name  
-user\_id  
+meeting_id  
+display_name  
+user_id  
 role  
-joined\_at  
-left\_at  
-is\_muted  
-is\_video\_on
+joined_at  
+left_at  
+is_muted  
+is_video_on
 
 Role:
 
@@ -240,14 +240,14 @@ participant
 
 ---
 
-## **recent\_meetings**
+## **recent_meetings**
 
-recent\_meetings  
+recent_meetings  
 \----------------  
 id  
-meeting\_id  
-user\_id  
-joined\_at
+meeting_id  
+user_id  
+joined_at
 
 ---
 
@@ -259,11 +259,11 @@ joined\_at
 
 ## **Features**
 
-* New Meeting  
-* Join Meeting  
-* Schedule Meeting  
-* Upcoming Meetings  
-* Recent Meetings
+- New Meeting
+- Join Meeting
+- Schedule Meeting
+- Upcoming Meetings
+- Recent Meetings
 
 ## **Communication Type**
 
@@ -290,9 +290,9 @@ New Meeting
 
 Backend:
 
-1. Generate unique meeting code  
-2. Create meeting record  
-3. Mark status as LIVE  
+1. Generate unique meeting code
+2. Create meeting record
+3. Mark status as LIVE
 4. Generate invite link
 
 API:
@@ -302,8 +302,8 @@ POST /meetings/instant
 Example Response:
 
 {  
-  "meeting\_code": "123456789",  
-  "invite\_link": "/meeting/123456789"  
+ "meeting_code": "123456789",  
+ "invite_link": "/meeting/123456789"  
 }
 
 Frontend Redirect:
@@ -332,7 +332,7 @@ Step 2
 
 Validate Meeting
 
-GET /meetings/{meeting\_code}
+GET /meetings/{meeting_code}
 
 Step 3
 
@@ -342,7 +342,7 @@ Step 4
 
 Join Meeting
 
-POST /meetings/{meeting\_code}/join
+POST /meetings/{meeting_code}/join
 
 Step 5
 
@@ -362,11 +362,11 @@ Start WebRTC
 
 ## **Form Fields**
 
-* Title  
-* Description  
-* Date  
-* Time  
-* Duration
+- Title
+- Description
+- Date
+- Time
+- Duration
 
 API
 
@@ -375,17 +375,17 @@ POST /meetings/schedule
 Example Request
 
 {  
-  "title": "Team Sync",  
-  "description": "Daily Standup",  
-  "scheduled\_start\_time": "2026-06-13T10:00:00",  
-  "duration\_minutes": 30  
+ "title": "Team Sync",  
+ "description": "Daily Standup",  
+ "scheduled_start_time": "2026-06-13T10:00:00",  
+ "duration_minutes": 30  
 }
 
 Backend:
 
-1. Generate meeting code  
-2. Generate invite link  
-3. Save meeting  
+1. Generate meeting code
+2. Generate invite link
+3. Save meeting
 4. Return meeting details
 
 Communication Type:
@@ -408,15 +408,15 @@ Responsibilities:
 
 WebRTC:
 
-* Video  
-* Audio  
-* Screen Share
+- Video
+- Audio
+- Screen Share
 
 WebSocket:
 
-* Signaling  
-* Participant state updates  
-* Meeting events
+- Signaling
+- Participant state updates
+- Meeting events
 
 ---
 
@@ -433,13 +433,16 @@ toggle-audio
 toggle-video  
 screen-share-started  
 screen-share-stopped  
+mute-participant  
 remove-participant  
-mute-participant
+mute-all  
+end-meeting
 
 ---
 
 ## **Server → Client**
 
+existing-participants  
 participant-joined  
 participant-left  
 offer  
@@ -447,8 +450,12 @@ answer
 ice-candidate  
 participant-audio-updated  
 participant-video-updated  
+screen-share-started  
+screen-share-stopped  
 host-muted-you  
-removed-from-meeting
+all-muted  
+removed-from-meeting  
+meeting-ended
 
 ---
 
@@ -459,10 +466,10 @@ Backend stores active rooms.
 Example:
 
 rooms \= {  
-    "123456789": {  
-        "socket\_1": participant,  
-        "socket\_2": participant  
-    }  
+ "123456789": {  
+ "socket_1": participant,  
+ "socket_2": participant  
+ }  
 }
 
 For assignment purposes:
@@ -479,56 +486,61 @@ would be used.
 
 # **7\. WebRTC Signaling Flow**
 
-Example with 2 participants.
+Example with 2 participants. **The joining participant (newcomer) always initiates the offer.** This is the standard "polite peer" WebRTC pattern and is what the implementation uses.
 
 ## **User A joins**
 
-Open camera  
-Open microphone
+Open camera and microphone.  
+WebSocket `join-room` → Server has no existing participants → nothing to offer yet.
 
 ---
 
 ## **User B joins**
 
-Server sends:
+User B connects WebSocket, sends `join-room`.
 
-participant-joined
+Server sends to User B:
 
-to User A.
+existing-participants \[\{clientId: "A", displayName: "Alice", ...\}\]
+
+Server sends to User A:
+
+participant-joined \{clientId: "B", displayName: "Bob"\}
 
 ---
 
 ## **Offer Creation**
 
-User A:
+**User B** (the newcomer) creates one RTCPeerConnection per existing participant and initiates the offer:
 
-Create RTCPeerConnection  
+Create RTCPeerConnection for User A  
+Add local tracks (camera/mic)  
 Create Offer  
-Send Offer
-
-Offer sent via WebSocket.
+Send \{event: "offer", targetClientId: "A", sdp: ...\} via WebSocket
 
 ---
 
 ## **Answer Creation**
 
-User B:
+**User A** receives the offer:
 
-Receive Offer  
+Create RTCPeerConnection for User B  
+Set Remote Description (offer)  
+Add local tracks (camera/mic)  
 Create Answer  
-Send Answer
+Send \{event: "answer", targetClientId: "B", sdp: ...\} via WebSocket
 
-Answer sent via WebSocket.
+User B sets Remote Description (answer).
 
 ---
 
 ## **ICE Exchange**
 
-Both users exchange:
+Both users trickle ICE candidates to each other via WebSocket:
 
-ICE Candidates
+\{event: "ice-candidate", targetClientId: "...", candidate: ...\}
 
-via WebSocket.
+ICE candidates that arrive before setRemoteDescription is called must be queued and applied after.
 
 ---
 
@@ -539,7 +551,7 @@ After connection establishment:
 Audio  
 Video
 
-flow directly through WebRTC.
+flow directly through WebRTC (P2P — no server relay).
 
 ---
 
@@ -576,22 +588,22 @@ Perfect for assignment requirements.
 
 # **9\. Feature vs Technology Mapping**
 
-| Feature | Technology |
-| ----- | ----- |
-| Dashboard | HTTP |
-| Create Meeting | HTTP |
-| Schedule Meeting | HTTP |
-| Validate Meeting | HTTP |
-| Join Meeting | HTTP |
-| Participant Join/Leave | WebSocket |
-| Chat | WebSocket |
-| Audio | WebRTC |
-| Video | WebRTC |
-| Screen Share | WebRTC |
-| Mute/Unmute | WebSocket |
-| Host Controls | WebSocket |
-| Recent Meetings | HTTP |
-| End Meeting | HTTP \+ WebSocket |
+| Feature                | Technology        |
+| ---------------------- | ----------------- |
+| Dashboard              | HTTP              |
+| Create Meeting         | HTTP              |
+| Schedule Meeting       | HTTP              |
+| Validate Meeting       | HTTP              |
+| Join Meeting           | HTTP              |
+| Participant Join/Leave | WebSocket         |
+| Chat                   | WebSocket         |
+| Audio                  | WebRTC            |
+| Video                  | WebRTC            |
+| Screen Share           | WebRTC            |
+| Mute/Unmute            | WebSocket         |
+| Host Controls          | WebSocket         |
+| Recent Meetings        | HTTP              |
+| End Meeting            | HTTP \+ WebSocket |
 
 ---
 
@@ -600,26 +612,26 @@ Perfect for assignment requirements.
 frontend/  
 │  
 ├── app/  
-│   ├── page.tsx  
-│   ├── dashboard/page.tsx  
-│   ├── join/page.tsx  
-│   ├── schedule/page.tsx  
-│   └── meeting/\[meetingCode\]/page.tsx  
+│ ├── page.tsx  
+│ ├── dashboard/page.tsx  
+│ ├── join/page.tsx  
+│ ├── schedule/page.tsx  
+│ └── meeting/\[meetingCode\]/page.tsx  
 │  
 ├── components/  
-│   ├── dashboard/  
-│   ├── meeting/  
-│   └── ui/  
+│ ├── dashboard/  
+│ ├── meeting/  
+│ └── ui/  
 │  
 ├── hooks/  
-│   ├── useWebSocket.ts  
-│   ├── useWebRTC.ts  
-│   └── useMediaDevices.ts  
+│ ├── useWebSocket.ts  
+│ ├── useWebRTC.ts  
+│ └── useMediaDevices.ts  
 │  
 └── lib/  
-    ├── api.ts  
-    ├── constants.ts  
-    └── types.ts
+ ├── api.ts  
+ ├── constants.ts  
+ └── types.ts
 
 ---
 
@@ -628,18 +640,18 @@ frontend/
 backend/  
 │  
 ├── app/  
-│   ├── main.py  
-│   ├── database.py  
-│   ├── models.py  
-│   ├── schemas.py  
+│ ├── main.py  
+│ ├── database.py  
+│ ├── models.py  
+│ ├── schemas.py  
 │  
 ├── routers/  
-│   ├── meetings.py  
-│   └── participants.py  
+│ ├── meetings.py  
+│ └── participants.py  
 │  
 ├── websocket/  
-│   ├── manager.py  
-│   └── signaling.py  
+│ ├── manager.py  
+│ └── signaling.py  
 │  
 └── seed.py
 
@@ -677,65 +689,65 @@ alembic (optional)
 
 Phase 1
 
-* Setup Frontend  
-* Setup Backend  
-* Setup SQLite
+- Setup Frontend
+- Setup Backend
+- Setup SQLite
 
 ---
 
 Phase 2
 
-* Dashboard UI  
-* Meeting APIs  
-* Schedule APIs  
-* Recent Meetings APIs
+- Dashboard UI
+- Meeting APIs
+- Schedule APIs
+- Recent Meetings APIs
 
 ---
 
 Phase 3
 
-* Meeting Room Layout  
-* Camera Preview  
-* Microphone Preview
+- Meeting Room Layout
+- Camera Preview
+- Microphone Preview
 
 ---
 
 Phase 4
 
-* FastAPI WebSocket Server  
-* Room Management
+- FastAPI WebSocket Server
+- Room Management
 
 ---
 
 Phase 5
 
-* WebRTC Signaling  
-* Offer/Answer Exchange  
-* ICE Candidate Exchange
+- WebRTC Signaling
+- Offer/Answer Exchange
+- ICE Candidate Exchange
 
 ---
 
 Phase 6
 
-* Video Calling  
-* Audio Calling  
-* Screen Sharing
+- Video Calling
+- Audio Calling
+- Screen Sharing
 
 ---
 
 Phase 7
 
-* Host Controls  
-* Mute Participants  
-* Remove Participants
+- Host Controls
+- Mute Participants
+- Remove Participants
 
 ---
 
 Phase 8
 
-* Seed Database  
-* Testing  
-* Deployment
+- Seed Database
+- Testing
+- Deployment
 
 ---
 
@@ -781,9 +793,9 @@ Hardcode a default user in backend seed data.
 Example:
 
 {  
-  "id": 1,  
-  "name": "Demo User",  
-  "email": "demo@example.com"  
+ "id": 1,  
+ "name": "Demo User",  
+ "email": "demo@example.com"  
 }
 
 Production Difference:
@@ -930,10 +942,10 @@ Load balancer with sticky sessions or WebSocket-aware routing
 MVP backend can store active meeting room state like this:
 
 rooms \= {  
-    "123456789": {  
-        "socket\_1": participant,  
-        "socket\_2": participant  
-    }  
+ "123456789": {  
+ "socket_1": participant,  
+ "socket_2": participant  
+ }  
 }
 
 Why:
@@ -977,7 +989,7 @@ Use SQLite for:
 users  
 meetings  
 participants  
-recent\_meetings
+recent_meetings
 
 Why:
 
@@ -1018,7 +1030,7 @@ Default user is logged in.
 
 Use:
 
-DEFAULT\_USER\_ID \= 1
+DEFAULT_USER_ID \= 1
 
 Production Difference:
 
@@ -1162,7 +1174,7 @@ Analytics
 
 MVP:
 
-Upcoming meetings \= scheduled meetings where scheduled\_start\_time \> current time.
+Upcoming meetings \= scheduled meetings where scheduled_start_time \> current time.
 
 API:
 
@@ -1229,20 +1241,20 @@ These can be mentioned as production improvements.
 
 # **16\. Final Decision Summary**
 
-| Area | MVP Decision | Production Decision |
-| ----- | ----- | ----- |
-| Video Architecture | Mesh WebRTC | SFU-based architecture |
-| Signaling | FastAPI WebSocket | WebSocket \+ Redis/message broker |
-| Database | SQLite | PostgreSQL |
-| Auth | Default user | Real auth with JWT/OAuth |
-| Room State | In-memory | Redis/presence service |
-| Meeting Links | Simple links | Secure signed links/passwords |
-| Deployment | Vercel \+ Render/Railway | Scalable cloud infra |
-| Participants | 2–5 users | Large meetings |
-| Host Controls | Basic WebSocket events | Permissioned controls \+ audit logs |
-| Screen Share | Basic getDisplayMedia | Dedicated screen stream \+ recording |
-| Recent Meetings | Simple DB table | Analytics/history/recordings |
-| Upcoming Meetings | Simple scheduled query | Calendar/recurring/reminders |
+| Area               | MVP Decision             | Production Decision                  |
+| ------------------ | ------------------------ | ------------------------------------ |
+| Video Architecture | Mesh WebRTC              | SFU-based architecture               |
+| Signaling          | FastAPI WebSocket        | WebSocket \+ Redis/message broker    |
+| Database           | SQLite                   | PostgreSQL                           |
+| Auth               | Default user             | Real auth with JWT/OAuth             |
+| Room State         | In-memory                | Redis/presence service               |
+| Meeting Links      | Simple links             | Secure signed links/passwords        |
+| Deployment         | Vercel \+ Render/Railway | Scalable cloud infra                 |
+| Participants       | 2–5 users                | Large meetings                       |
+| Host Controls      | Basic WebSocket events   | Permissioned controls \+ audit logs  |
+| Screen Share       | Basic getDisplayMedia    | Dedicated screen stream \+ recording |
+| Recent Meetings    | Simple DB table          | Analytics/history/recordings         |
+| Upcoming Meetings  | Simple scheduled query   | Calendar/recurring/reminders         |
 
 ---
 
@@ -1269,4 +1281,3 @@ Replace in-memory state with Redis
 Add real authentication  
 Add permissions and security  
 Add monitoring and scalable deployment
-

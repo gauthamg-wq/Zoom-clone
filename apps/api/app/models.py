@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.orm import relationship
 
 from .database import Base
 
@@ -51,3 +52,5 @@ class RecentMeeting(Base):
     meeting_id = Column(Integer, ForeignKey("meetings.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     joined_at = Column(DateTime, server_default=func.now())
+
+    meeting = relationship("Meeting", lazy="joined")

@@ -59,6 +59,32 @@ class ParticipantRead(ParticipantBase):
     left_at: datetime | None = None
 
 
+class ScheduleMeetingCreate(BaseModel):
+    title: str
+    description: str | None = None
+    scheduled_start_time: datetime
+    duration_minutes: int | None = None
+
+
+class JoinMeetingRequest(BaseModel):
+    display_name: str
+
+
+class MeetingPatch(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    status: str | None = None
+    scheduled_start_time: datetime | None = None
+    duration_minutes: int | None = None
+
+
+class JoinMeetingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    meeting: MeetingRead
+    participant: ParticipantRead
+
+
 class RecentMeetingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,3 +92,4 @@ class RecentMeetingRead(BaseModel):
     meeting_id: int
     user_id: int
     joined_at: datetime
+    meeting: MeetingRead

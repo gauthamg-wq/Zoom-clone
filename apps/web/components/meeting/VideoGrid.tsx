@@ -1,16 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { RemoteParticipant } from "@/lib/types";
 import { VideoTile } from "./VideoTile";
-
-export interface RemoteParticipant {
-  id: number;
-  displayName: string;
-  stream: MediaStream | null;
-  isMuted: boolean;
-  isVideoOn: boolean;
-  isHost: boolean;
-}
 
 interface VideoGridProps {
   localStream: MediaStream | null;
@@ -54,15 +46,15 @@ export function VideoGrid({
         />
       </div>
 
-      {/* Remote tiles — populated in Phase 6 */}
+      {/* Remote tiles — streams attached in Phase 6 */}
       {remoteParticipants.map((p) => (
         <VideoTile
-          key={p.id}
+          key={p.clientId}
           stream={p.stream}
           displayName={p.displayName}
-          isMuted={p.isMuted}
-          isVideoOn={p.isVideoOn}
-          isHost={p.isHost}
+          isMuted={p.is_muted}
+          isVideoOn={p.is_video_on}
+          isHost={p.role === "host"}
           size={tileSize}
         />
       ))}

@@ -13,7 +13,7 @@ todos:
     status: completed
   - id: phase-5
     content: "Phase 5: Full WebSocket signaling event protocol (backend + frontend hook)"
-    status: pending
+    status: completed
   - id: phase-6
     content: "Phase 6: WebRTC mesh — offer/answer/ICE, remote video streams, screen share"
     status: pending

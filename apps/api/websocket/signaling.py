@@ -1,45 +1,182 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
-from .manager import manager
+from .manager import ParticipantState, manager
 
 router = APIRouter()
 
 
 @router.websocket("/ws/{meeting_code}")
-async def signaling_endpoint(websocket: WebSocket, meeting_code: str) -> None:
+async def signaling_endpoint(
+    websocket: WebSocket,
+    meeting_code: str,
+    client_id: str = Query(...),
+) -> None:
     """
-    WebSocket endpoint for WebRTC signaling and room events.
+    WebSocket signaling endpoint.
 
-    The server acts as a relay: it broadcasts every message from one participant
-    to all others in the same room. Full event handling (join-room, offer, answer,
-    ice-candidate, host controls) will be added in Phases 4–5.
+    The client must send a `join-room` event immediately after connecting.
+    Until that event is received the participant is not visible to other clients.
 
-    Supported client→server events (Phase 4-5):
-        join-room, leave-room, offer, answer, ice-candidate,
-        toggle-audio, toggle-video, screen-share-started, screen-share-stopped,
-        mute-participant, remove-participant
-
-    Server→client events (Phase 4-5):
-        participant-joined, participant-left, offer, answer, ice-candidate,
-        participant-audio-updated, participant-video-updated,
-        host-muted-you, removed-from-meeting
+    URL: /ws/{meeting_code}?client_id=<uuid>
     """
-    client_id: str = websocket.headers.get("sec-websocket-key", str(id(websocket)))
-    await manager.connect(meeting_code, client_id, websocket)
+    # Accept the socket before any receive so the client can start sending
+    await websocket.accept()
+
+    # The participant slot is registered after the join-room event arrives
+    joined = False
+
     try:
         while True:
             data: dict = await websocket.receive_json()
-            event = data.get("event")
+            event: str = data.get("event", "")
 
-            await manager.broadcast(meeting_code, data, exclude=client_id)
+            match event:
+                case "join-room":
+                    participant = ParticipantState(
+                        client_id=client_id,
+                        display_name=data.get("displayName", "Participant"),
+                        role=data.get("role", "participant"),
+                    )
+                    await manager.connect(meeting_code, client_id, websocket, participant)
+                    joined = True
 
-            if event == "leave-room":
-                break
+                    # Tell the newcomer who is already in the room
+                    existing = manager.get_participants(meeting_code)
+                    await manager.send_to(
+                        meeting_code,
+                        client_id,
+                        {
+                            "event": "existing-participants",
+                            "participants": [
+                                p.to_dict()
+                                for p in existing
+                                if p.client_id != client_id
+                            ],
+                        },
+                    )
+
+                    # Notify everyone else
+                    await manager.broadcast(
+                        meeting_code,
+                        {
+                            "event": "participant-joined",
+                            "clientId": client_id,
+                            "displayName": participant.display_name,
+                            "role": participant.role,
+                        },
+                        exclude=client_id,
+                    )
+
+                case "leave-room":
+                    break
+
+                # --- WebRTC peer-to-peer routing ---
+                case "offer" | "answer" | "ice-candidate":
+                    target = data.get("targetClientId")
+                    if target:
+                        await manager.send_to(
+                            meeting_code,
+                            target,
+                            {**data, "clientId": client_id},
+                        )
+
+                # --- Media state ---
+                case "toggle-audio":
+                    is_muted: bool = bool(data.get("isMuted", False))
+                    await manager.update_participant(
+                        meeting_code, client_id, is_muted=is_muted
+                    )
+                    await manager.broadcast(
+                        meeting_code,
+                        {
+                            "event": "participant-audio-updated",
+                            "clientId": client_id,
+                            "isMuted": is_muted,
+                        },
+                        exclude=client_id,
+                    )
+
+                case "toggle-video":
+                    is_video_on: bool = bool(data.get("isVideoOn", True))
+                    await manager.update_participant(
+                        meeting_code, client_id, is_video_on=is_video_on
+                    )
+                    await manager.broadcast(
+                        meeting_code,
+                        {
+                            "event": "participant-video-updated",
+                            "clientId": client_id,
+                            "isVideoOn": is_video_on,
+                        },
+                        exclude=client_id,
+                    )
+
+                case "screen-share-started":
+                    await manager.update_participant(
+                        meeting_code, client_id, is_screen_sharing=True
+                    )
+                    await manager.broadcast(
+                        meeting_code,
+                        {"event": "screen-share-started", "clientId": client_id},
+                        exclude=client_id,
+                    )
+
+                case "screen-share-stopped":
+                    await manager.update_participant(
+                        meeting_code, client_id, is_screen_sharing=False
+                    )
+                    await manager.broadcast(
+                        meeting_code,
+                        {"event": "screen-share-stopped", "clientId": client_id},
+                        exclude=client_id,
+                    )
+
+                # --- Host controls (Phase 7 actions already routed here) ---
+                case "mute-participant":
+                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
+                    if sender and sender[1].role == "host":
+                        target = data.get("targetClientId")
+                        if target:
+                            await manager.send_to(
+                                meeting_code,
+                                target,
+                                {"event": "host-muted-you"},
+                            )
+
+                case "mute-all":
+                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
+                    if sender and sender[1].role == "host":
+                        await manager.broadcast(
+                            meeting_code,
+                            {"event": "all-muted", "by": client_id},
+                            exclude=client_id,
+                        )
+
+                case "remove-participant":
+                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
+                    if sender and sender[1].role == "host":
+                        target = data.get("targetClientId")
+                        if target:
+                            await manager.send_to(
+                                meeting_code,
+                                target,
+                                {"event": "removed-from-meeting"},
+                            )
+
+                case "end-meeting":
+                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
+                    if sender and sender[1].role == "host":
+                        await manager.broadcast(
+                            meeting_code,
+                            {"event": "meeting-ended"},
+                        )
+
     except WebSocketDisconnect:
         pass
     finally:
-        manager.disconnect(meeting_code, client_id)
-        await manager.broadcast(
-            meeting_code,
-            {"event": "participant-left", "clientId": client_id},
-        )
+        if joined:
+            manager.disconnect(meeting_code, client_id)
+            await manager.broadcast(
+                meeting_code,
+                {"event": "participant-left", "clientId": client_id},
+            )

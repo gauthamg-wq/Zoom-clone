@@ -7,6 +7,7 @@ import { ZoomButton } from "@/components/ui/zoom-button";
 interface MeetingHeaderProps {
   meetingCode: string;
   isHost: boolean;
+  isConnected: boolean;
   onLeave: () => void;
   onEnd: () => void;
 }
@@ -22,6 +23,7 @@ function formatElapsed(seconds: number): string {
 export function MeetingHeader({
   meetingCode,
   isHost,
+  isConnected,
   onLeave,
   onEnd,
 }: MeetingHeaderProps) {
@@ -55,10 +57,16 @@ export function MeetingHeader({
         )}
       </button>
 
-      {/* Timer */}
-      <span className="text-gray-300 text-sm font-mono tabular-nums">
-        {formatElapsed(elapsed)}
-      </span>
+      {/* Timer + connection indicator */}
+      <div className="flex items-center gap-2">
+        <span
+          className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400" : "bg-gray-500"}`}
+          title={isConnected ? "Connected" : "Connecting…"}
+        />
+        <span className="text-gray-300 text-sm font-mono tabular-nums">
+          {formatElapsed(elapsed)}
+        </span>
+      </div>
 
       {/* Leave / End */}
       <div>

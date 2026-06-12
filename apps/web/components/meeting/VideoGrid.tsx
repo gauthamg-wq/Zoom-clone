@@ -26,10 +26,10 @@ export function VideoGrid({
   const totalCount = 1 + remoteParticipants.length;
 
   const gridClass = cn(
-    "w-full h-full p-4 gap-3",
+    "w-full h-full p-2 sm:p-4 gap-2 sm:gap-3",
     totalCount === 1 && "flex items-center justify-center",
-    totalCount === 2 && "grid grid-cols-2",
-    totalCount >= 3 && "grid grid-cols-2",
+    totalCount === 2 && "grid grid-cols-1 sm:grid-cols-2",
+    totalCount >= 3 && "grid grid-cols-1 sm:grid-cols-2",
   );
 
   const tileSize =

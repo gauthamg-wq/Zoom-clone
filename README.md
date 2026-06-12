@@ -138,6 +138,16 @@ See [`apps/web/.env.example`](apps/web/.env.example) and [`apps/api/.env.example
 
 ---
 
+## Architecture Decisions & Known Limitations
+
+- **Mesh WebRTC** — Each browser opens a peer connection to every other participant. This works well for up to ~4 participants; larger rooms need an SFU (e.g. LiveKit, mediasoup).
+- **In-memory room state** — `ConnectionManager` lives in the FastAPI process. Scaling to multiple workers requires Redis pub/sub.
+- **No authentication** — All requests use a hardcoded demo user (id=1). A production build would add JWT or OAuth.
+- **SQLite** — Zero-config for local development. Switch `DATABASE_URL` to PostgreSQL for production persistence.
+- **No Alembic** — `Base.metadata.create_all` on startup is fine for a demo; real apps need versioned migrations.
+
+---
+
 ## Assumptions & Decisions
 
 | Area        | MVP Decision                    | Production Upgrade        |
@@ -151,15 +161,29 @@ See [`apps/web/.env.example`](apps/web/.env.example) and [`apps/api/.env.example
 
 ---
 
+## Features
+
+- **Instant meetings** — one-click "Start" creates and joins a meeting
+- **Scheduled meetings** — schedule future meetings with title, time, and duration
+- **Join by code** — join any meeting by entering the 9-digit code
+- **Real-time video & audio** — full WebRTC mesh between all participants
+- **Screen sharing** — share your screen with a single click
+- **Host controls** — mute individual participants, mute all, remove participants, end the meeting
+- **Participants sidebar** — live list of who's in the room with media status indicators
+- **Toast notifications** — invite link copied, host-muted feedback, meeting-ended alerts
+- **Responsive design** — works on mobile (375 px) through desktop (1280 px+)
+
+---
+
 ## Development Roadmap
 
-| Phase | Goal                                       |
-| ----- | ------------------------------------------ |
-| 1     | ✅ Monorepo scaffold (this step)           |
-| 2     | Dashboard UI · Meeting CRUD APIs           |
-| 3     | Meeting room layout · Camera / mic preview |
-| 4     | FastAPI WebSocket server · Room management |
-| 5     | WebRTC signaling (offer / answer / ICE)    |
-| 6     | Video · Audio · Screen sharing             |
-| 7     | Host controls (mute, remove, end meeting)  |
-| 8     | Seed data · Testing · Deployment           |
+| Phase | Goal                                               |
+| ----- | -------------------------------------------------- |
+| 1     | ✅ Monorepo scaffold                               |
+| 2     | ✅ Backend REST APIs + service layer               |
+| 3     | ✅ Dashboard UI + join/schedule pages              |
+| 4     | ✅ Meeting room layout + camera/mic preview        |
+| 5     | ✅ Full WebSocket signaling protocol               |
+| 6     | ✅ WebRTC mesh: video, audio, screen share         |
+| 7     | ✅ Host controls: mute, remove, end meeting        |
+| 8     | ✅ Polish: responsive design, toasts, error states |

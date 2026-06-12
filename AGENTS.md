@@ -38,5 +38,5 @@ cd apps/api && uv run uvicorn app.main:app --reload
 
 ## Current State
 
-Phase 1 complete (scaffold). Phase 2 next: Dashboard UI + Meeting CRUD APIs.
-See `docs/` for the full architecture plan and roadmap.
+All 8 phases complete. The app is fully functional.
+See `docs/plan/` for the original phase-by-phase implementation plan.

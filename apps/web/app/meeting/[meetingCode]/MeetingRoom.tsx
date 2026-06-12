@@ -9,6 +9,7 @@ import { ParticipantsSidebar } from "@/components/meeting/ParticipantsSidebar";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { Meeting, RemoteParticipant, WSEvent } from "@/lib/types";
@@ -161,18 +162,23 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           break;
 
         case "meeting-ended":
+          toast.info("The meeting has ended.");
           stopMedia();
           router.push("/dashboard?ended=1");
           break;
 
         case "removed-from-meeting":
+          toast.warning("You were removed from the meeting.");
           stopMedia();
           router.push("/dashboard?removed=1");
           break;
 
         case "all-muted":
         case "host-muted-you":
-          if (!isMuted) toggleAudio();
+          if (!isMuted) {
+            toggleAudio();
+            toast.info("You have been muted by the host.");
+          }
           break;
 
         default:

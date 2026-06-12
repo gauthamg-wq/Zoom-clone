@@ -43,7 +43,7 @@ function ControlButton({
       onClick={onClick}
       title={title}
       className={cn(
-        "w-11 h-11 rounded-full flex items-center justify-center transition",
+        "w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition shrink-0",
         active
           ? "bg-gray-700 hover:bg-gray-600 text-white"
           : "bg-red-600 hover:bg-red-500 text-white",
@@ -68,12 +68,12 @@ export function ControlBar({
   onEnd,
 }: ControlBarProps) {
   return (
-    <footer className="bg-gray-900 border-t border-gray-800 h-20 flex items-center justify-between px-6 shrink-0">
-      {/* Left spacer */}
-      <div className="flex-1" />
+    <footer className="bg-gray-900 border-t border-gray-800 h-20 flex items-center justify-between px-3 sm:px-6 shrink-0">
+      {/* Left spacer — hidden on mobile to maximise control space */}
+      <div className="hidden sm:flex flex-1" />
 
       {/* Center controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto max-w-full">
         <ControlButton
           onClick={onToggleAudio}
           active={!isMuted}
@@ -122,7 +122,7 @@ export function ControlBar({
       </div>
 
       {/* Right: Leave/End */}
-      <div className="flex-1 flex justify-end">
+      <div className="flex-1 flex justify-end sm:flex-1">
         {isHost ? (
           <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
             End Meeting

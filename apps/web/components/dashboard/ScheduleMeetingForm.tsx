@@ -12,6 +12,7 @@ import {
   ZoomCardHeader,
   ZoomCardTitle,
 } from "@/components/ui/zoom-card";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 const schema = z.object({
@@ -56,6 +57,7 @@ export function ScheduleMeetingForm() {
       });
 
       setSuccess(true);
+      toast.success("Meeting scheduled successfully!");
       setTimeout(() => router.push("/dashboard"), 1200);
     } catch (err: unknown) {
       setSubmitError(

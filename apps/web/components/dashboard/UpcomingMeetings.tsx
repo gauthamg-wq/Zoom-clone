@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { format, isToday, isTomorrow } from "date-fns";
 import { Clock, Copy, Check } from "lucide-react";
+import { toast } from "sonner";
 import { ZoomButton } from "@/components/ui/zoom-button";
 import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
@@ -45,6 +46,7 @@ export function UpcomingMeetings({ meetings }: UpcomingMeetingsProps) {
     if (!meeting.invite_link) return;
     await navigator.clipboard.writeText(meeting.invite_link);
     setCopied(meeting.meeting_code);
+    toast.success("Invite link copied!");
     setTimeout(() => setCopied(null), 2000);
   }
 

@@ -38,7 +38,7 @@ export function ParticipantsSidebar({
   }
 
   return (
-    <aside className="w-72 bg-gray-900 border-l border-gray-800 flex flex-col shrink-0">
+    <aside className="fixed inset-x-0 bottom-0 h-80 sm:relative sm:inset-auto sm:bottom-auto sm:h-auto sm:w-72 bg-gray-900 border-t sm:border-t-0 sm:border-l border-gray-800 flex flex-col shrink-0 z-40">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <span className="font-semibold text-white text-sm">

@@ -6,6 +6,7 @@ import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
 import { RecentMeetings } from "@/components/dashboard/RecentMeetings";
+import { ZoomButton } from "@/components/ui/zoom-button";
 import { ZoomSkeleton } from "@/components/ui/zoom-skeleton";
 import { api } from "@/lib/api";
 import type { Meeting, RecentMeeting } from "@/lib/types";
@@ -51,8 +52,11 @@ export default function DashboardPage() {
   const [recent, setRecent] = useState<RecentMeeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     Promise.all([api.getUpcomingMeetings(), api.getRecentMeetings()])
       .then(([up, rec]) => {
         setUpcoming(up);
@@ -64,7 +68,7 @@ export default function DashboardPage() {
         );
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [retryKey]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,8 +80,17 @@ export default function DashboardPage() {
         {loading ? (
           <DashboardSkeleton />
         ) : error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {error}
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-4 space-y-3">
+            <p className="text-sm text-destructive">
+              Could not load meetings. Check your connection.
+            </p>
+            <ZoomButton
+              size="sm"
+              variant="outline"
+              onClick={() => setRetryKey((k) => k + 1)}
+            >
+              Retry
+            </ZoomButton>
           </div>
         ) : (
           <>

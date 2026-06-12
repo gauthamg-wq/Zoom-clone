@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.database import Base, SessionLocal, engine
 from app import models
+from services.meeting_service import generate_meeting_code, generate_invite_link
 
 
 def seed() -> None:
@@ -31,45 +32,57 @@ def seed() -> None:
 
         now = datetime.now(timezone.utc)
 
-        team_sync = models.Meeting(
-            meeting_code="111111111",
+        def make_meeting(**kwargs) -> models.Meeting:
+            code = generate_meeting_code(db)
+            return models.Meeting(
+                meeting_code=code,
+                invite_link=generate_invite_link(code),
+                host_user_id=1,
+                **kwargs,
+            )
+
+        # 3 upcoming scheduled meetings
+        team_sync = make_meeting(
             title="Team Sync",
             status="scheduled",
-            host_user_id=1,
             scheduled_start_time=now + timedelta(hours=2),
             duration_minutes=30,
-            invite_link="http://localhost:3000/meeting/111111111",
         )
-        design_review = models.Meeting(
-            meeting_code="222222222",
+        design_review = make_meeting(
             title="Design Review",
             status="scheduled",
-            host_user_id=1,
-            scheduled_start_time=now + timedelta(days=1),
+            scheduled_start_time=now + timedelta(days=1, hours=9),
             duration_minutes=60,
-            invite_link="http://localhost:3000/meeting/222222222",
         )
-        sprint_planning = models.Meeting(
-            meeting_code="333333333",
-            title="Sprint Planning",
-            status="ended",
-            host_user_id=1,
-            scheduled_start_time=now - timedelta(days=1),
-            duration_minutes=45,
-            invite_link="http://localhost:3000/meeting/333333333",
-        )
-        one_on_one = models.Meeting(
-            meeting_code="444444444",
-            title="1:1 with Manager",
-            status="ended",
-            host_user_id=1,
-            scheduled_start_time=now - timedelta(days=2),
-            duration_minutes=30,
-            invite_link="http://localhost:3000/meeting/444444444",
+        all_hands = make_meeting(
+            title="Engineering All-Hands",
+            status="scheduled",
+            scheduled_start_time=now + timedelta(days=3),
+            duration_minutes=90,
         )
 
-        db.add_all([team_sync, design_review, sprint_planning, one_on_one])
-        db.flush()  # populate IDs before creating RecentMeeting rows
+        # 3 ended meetings
+        sprint_planning = make_meeting(
+            title="Sprint Planning",
+            status="ended",
+            scheduled_start_time=now - timedelta(days=1),
+            duration_minutes=45,
+        )
+        one_on_one = make_meeting(
+            title="1:1 with Manager",
+            status="ended",
+            scheduled_start_time=now - timedelta(days=2),
+            duration_minutes=30,
+        )
+        client_demo = make_meeting(
+            title="Client Demo",
+            status="ended",
+            scheduled_start_time=now - timedelta(days=4),
+            duration_minutes=60,
+        )
+
+        db.add_all([team_sync, design_review, all_hands, sprint_planning, one_on_one, client_demo])
+        db.flush()
 
         db.add_all([
             models.RecentMeeting(
@@ -82,9 +95,14 @@ def seed() -> None:
                 user_id=1,
                 joined_at=now - timedelta(days=2),
             ),
+            models.RecentMeeting(
+                meeting_id=client_demo.id,
+                user_id=1,
+                joined_at=now - timedelta(days=4),
+            ),
         ])
         db.commit()
-        print("Seeded meetings and recent_meeting rows.")
+        print("Seeded 3 upcoming + 3 ended meetings with recent_meeting rows.")
     finally:
         db.close()
 

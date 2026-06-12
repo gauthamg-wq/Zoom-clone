@@ -1,0 +1,22 @@
+---
+description: FastAPI / Python conventions for apps/api
+globs: apps/api/**/*.py
+alwaysApply: false
+---
+
+# Backend Conventions
+
+## Structure
+
+- `app/` — core: models, schemas, database config
+- `routers/` — REST routes, one file per resource, kept thin
+- `websocket/` — WebSocket signaling layer
+
+## Patterns
+
+- Business logic in service functions — route handlers only wire inputs to outputs
+- Dependency injection via `get_db()` for per-request DB sessions
+- Pydantic v2 schemas with `ConfigDict(from_attributes=True)` for ORM serialization
+- SQLAlchemy 2 declarative models in `app/models.py`
+- Use `HTTPException` with appropriate status codes; no bare `except`
+- Package managed with `uv`; Python 3.12

@@ -1,0 +1,26 @@
+---
+description: Next.js / React / TypeScript conventions for apps/web
+globs: apps/web/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend Conventions
+
+## Components
+
+- Functional components only; `React.forwardRef` when forwarding refs
+- Compound components for complex UI (e.g. `ZoomCard` + `ZoomCardHeader`)
+- Custom hooks in `hooks/` for reusable stateful logic
+- shadcn/ui + Base UI as base primitives; extend with `zoom-*` components for branding
+
+## Styling
+
+- Tailwind v4 CSS-first config lives in `app/globals.css` — no `tailwind.config.js`
+- Use `cn()` from `@/lib/utils` for conditional class merging
+- Use CVA (`class-variance-authority`) for components with multiple variants
+
+## Next.js App Router
+
+- Server Components by default; add `'use client'` only for interactivity, hooks, or browser APIs
+- Path aliases: `@/components`, `@/lib`, `@/hooks`
+- No Pages Router — App Router only

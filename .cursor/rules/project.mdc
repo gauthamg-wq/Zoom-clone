@@ -1,0 +1,26 @@
+---
+description: Core project context and code quality standards
+globs:
+alwaysApply: true
+---
+
+# Zoom Clone — Project Context
+
+Turborepo + pnpm monorepo. Two apps:
+
+- `apps/web` — Next.js 16 (App Router), React 19, TypeScript, Tailwind v4, shadcn/ui
+- `apps/api` — FastAPI, SQLAlchemy 2, Pydantic v2, WebSockets, SQLite (→ PostgreSQL)
+
+## Code Standards
+
+- No comments that narrate what the code does — comments explain _why_, not _what_
+- Separate concerns: UI in `components/`, logic in `lib/`/`hooks/`, routes in `routers/`
+- Reuse before rebuild — check existing utilities and components first
+- No `any` in TypeScript; no bare `except` in Python
+
+## Development Phases
+
+- Phase 1: Monorepo scaffold ✅
+- Phase 2: Dashboard UI + Meeting CRUD APIs
+- Phase 3: Meeting room layout + camera preview
+- Phase 4+: WebRTC mesh, host controls, JWT auth, Redis, PostgreSQL

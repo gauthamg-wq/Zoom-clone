@@ -1,0 +1,27 @@
+# Build outputs
+.next/
+dist/
+build/
+
+# Dependencies
+node_modules/
+
+# Turborepo cache
+.turbo/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+apps/api/.venv/
+
+# Database
+apps/api/data/zoom.db
+
+# Lock files (large, low signal)
+pnpm-lock.yaml
+uv.lock
+
+# OS
+.DS_Store

@@ -62,8 +62,6 @@ export function useWebSocket({
     return () => {
       ws.close();
     };
-    // Only re-connect if the room or clientId changes — not on every render
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meetingCode, clientId]);
 
   const send = useCallback((message: WSMessage) => {

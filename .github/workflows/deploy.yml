@@ -1,0 +1,160 @@
+# Deploy — manual only. Go to Actions → Deploy → Run workflow (play button).
+#
+# Required GitHub secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_DEPLOY_HOOK_URL  — Vercel → Project → Settings → Git → Deploy Hooks
+#   RENDER_DEPLOY_HOOK_URL  — Render → zoom-clone-api → Settings → Deploy Hook
+#
+# Turn off native auto-deploy so only this workflow deploys:
+#   Vercel: Project → Settings → Git → disable automatic production deploys
+#   Render: Service → Settings → Auto-Deploy → Off
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit SHA to deploy
+        type: string
+        default: main
+      deploy_frontend:
+        description: Deploy frontend (Vercel)
+        type: boolean
+        default: true
+      deploy_backend:
+        description: Deploy backend (Render)
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  PNPM_VERSION: "11.0.9"
+  NODE_VERSION: "24"
+  PYTHON_VERSION: "3.12"
+  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://zoom-clone-api-zc2k.onrender.com' }}
+  NEXT_PUBLIC_WS_URL: ${{ vars.NEXT_PUBLIC_WS_URL || 'wss://zoom-clone-api-zc2k.onrender.com' }}
+
+jobs:
+  lint-frontend:
+    name: Lint — Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm --filter @zoom-clone/web lint
+
+      - name: TypeScript
+        run: pnpm --filter @zoom-clone/web exec tsc --noEmit
+
+  lint-backend:
+    name: Lint — Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-path: apps/api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Python syntax check
+        run: uv run python -m compileall -q app routers websocket services seed.py
+
+  build-frontend:
+    name: Build — Frontend
+    needs: [lint-frontend, lint-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app
+        run: pnpm turbo build --filter=@zoom-clone/web
+
+  build-backend:
+    name: Build — Backend
+    needs: [lint-frontend, lint-backend]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-path: apps/api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Verify application imports
+        run: uv run python -c "from app.main import app; assert app.title == 'Zoom Clone API'"
+
+  deploy-frontend:
+    name: Deploy — Frontend (Vercel)
+    needs: [build-frontend, build-backend]
+    if: inputs.deploy_frontend
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Vercel deployment
+        run: curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+
+  deploy-backend:
+    name: Deploy — Backend (Render)
+    needs: [build-frontend, build-backend]
+    if: inputs.deploy_backend
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render deployment
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

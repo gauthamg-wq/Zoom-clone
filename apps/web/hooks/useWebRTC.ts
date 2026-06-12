@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { WSEvent, WSMessage } from "@/lib/types";
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -44,12 +44,14 @@ export function useWebRTC({
   const [localPreviewStream, setLocalPreviewStream] =
     useState<MediaStream | null>(null);
 
-  // Keep a stable ref to send so callbacks don't go stale
+  // Keep stable refs so callbacks don't go stale
   const sendRef = useRef(send);
-  sendRef.current = send;
-
   const localStreamRef = useRef(localStream);
-  localStreamRef.current = localStream;
+
+  useEffect(() => {
+    sendRef.current = send;
+    localStreamRef.current = localStream;
+  }, [send, localStream]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

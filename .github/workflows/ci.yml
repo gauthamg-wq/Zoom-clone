@@ -1,0 +1,112 @@
+# CI — lint and build on every push/PR to main. Does not deploy.
+#
+# To deploy, run the "Deploy" workflow manually from the Actions tab.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: "11.0.9"
+  NODE_VERSION: "24"
+  PYTHON_VERSION: "3.12"
+  NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://zoom-clone-api-zc2k.onrender.com' }}
+  NEXT_PUBLIC_WS_URL: ${{ vars.NEXT_PUBLIC_WS_URL || 'wss://zoom-clone-api-zc2k.onrender.com' }}
+
+jobs:
+  lint-frontend:
+    name: Lint — Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm --filter @zoom-clone/web lint
+
+      - name: TypeScript
+        run: pnpm --filter @zoom-clone/web exec tsc --noEmit
+
+  lint-backend:
+    name: Lint — Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-path: apps/api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Python syntax check
+        run: uv run python -m compileall -q app routers websocket services seed.py
+
+  build-frontend:
+    name: Build — Frontend
+    needs: [lint-frontend, lint-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js app
+        run: pnpm turbo build --filter=@zoom-clone/web
+
+  build-backend:
+    name: Build — Backend
+    needs: [lint-frontend, lint-backend]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+          cache-dependency-path: apps/api/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Verify application imports
+        run: uv run python -c "from app.main import app; assert app.title == 'Zoom Clone API'"

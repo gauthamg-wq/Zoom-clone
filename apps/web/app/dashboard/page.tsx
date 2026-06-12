@@ -55,19 +55,26 @@ export default function DashboardPage() {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    let cancelled = false;
     Promise.all([api.getUpcomingMeetings(), api.getRecentMeetings()])
       .then(([up, rec]) => {
+        if (cancelled) return;
         setUpcoming(up);
         setRecent(rec);
+        setError(null);
       })
       .catch((err: unknown) => {
+        if (cancelled) return;
         setError(
           err instanceof Error ? err.message : "Failed to load meetings",
         );
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [retryKey]);
 
   return (
@@ -87,7 +94,11 @@ export default function DashboardPage() {
             <ZoomButton
               size="sm"
               variant="outline"
-              onClick={() => setRetryKey((k) => k + 1)}
+              onClick={() => {
+                setLoading(true);
+                setError(null);
+                setRetryKey((k) => k + 1);
+              }}
             >
               Retry
             </ZoomButton>

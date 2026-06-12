@@ -8,6 +8,7 @@ import { ControlBar } from "@/components/meeting/ControlBar";
 import { ParticipantsSidebar } from "@/components/meeting/ParticipantsSidebar";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useWebRTC } from "@/hooks/useWebRTC";
 import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { Meeting, RemoteParticipant, WSEvent } from "@/lib/types";
@@ -39,7 +40,6 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
     participantIdParam ? parseInt(participantIdParam, 10) : null,
   );
 
-  // Stable UUID for this browser session in this meeting
   const clientId = useMemo(() => crypto.randomUUID(), []);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -47,6 +47,9 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
   const [remoteParticipants, setRemoteParticipants] = useState<
     RemoteParticipant[]
   >([]);
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(
+    new Map(),
+  );
 
   const {
     localStream,
@@ -61,7 +64,45 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
 
   const isHost = meeting.host_user_id === 1;
 
-  // ── WebSocket event handler ────────────────────────────────────────────────
+  // ── WebSocket ──────────────────────────────────────────────────────────────
+  // handleWsEvent is defined after useWebRTC to close over its handlers,
+  // but useWebSocket needs a stable callback reference. Use a ref bridge.
+  const wsEventHandlerRef = useRef<(event: WSEvent) => void>(() => undefined);
+
+  const { send, isConnected } = useWebSocket({
+    meetingCode: meeting.meeting_code,
+    clientId,
+    onEvent: useCallback(
+      (event: WSEvent) => wsEventHandlerRef.current(event),
+      [],
+    ),
+  });
+
+  // ── WebRTC ─────────────────────────────────────────────────────────────────
+  const {
+    handleSignal,
+    handleExistingParticipants,
+    handleParticipantLeft,
+    startScreenShare,
+    stopScreenShare,
+    isScreenSharing,
+    localPreviewStream,
+  } = useWebRTC({
+    localStream,
+    onRemoteStream: (id, stream) => {
+      setRemoteStreams((prev) => new Map(prev).set(id, stream));
+    },
+    onRemoteStreamRemoved: (id) => {
+      setRemoteStreams((prev) => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+    },
+    send,
+  });
+
+  // ── WS event handler (wired after both hooks are ready) ────────────────────
   const handleWsEvent = useCallback(
     (ev: WSEvent) => {
       switch (ev.event) {
@@ -69,6 +110,7 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           setRemoteParticipants(
             ev.participants.map((p) => ({ ...p, stream: null })),
           );
+          handleExistingParticipants(ev.participants.map((p) => p.clientId));
           break;
 
         case "participant-joined":
@@ -90,6 +132,7 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           setRemoteParticipants((prev) =>
             prev.filter((p) => p.clientId !== ev.clientId),
           );
+          handleParticipantLeft(ev.clientId);
           break;
 
         case "participant-audio-updated":
@@ -110,37 +153,44 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           );
           break;
 
-        case "meeting-ended":
-          stopMedia();
-          router.push("/dashboard");
+        // Route WebRTC signals into the hook
+        case "offer":
+        case "answer":
+        case "ice-candidate":
+          void handleSignal(ev);
           break;
 
+        case "meeting-ended":
         case "removed-from-meeting":
           stopMedia();
           router.push("/dashboard");
           break;
 
         case "host-muted-you":
-          // Mute local track so other participants also hear silence
           if (!isMuted) toggleAudio();
           break;
 
-        // offer / answer / ice-candidate forwarded to useWebRTC in Phase 6
         default:
           break;
       }
     },
-    // toggleAudio and isMuted are stable / primitive — safe to list
-    [isMuted, router, stopMedia, toggleAudio],
+    [
+      handleExistingParticipants,
+      handleParticipantLeft,
+      handleSignal,
+      isMuted,
+      router,
+      stopMedia,
+      toggleAudio,
+    ],
   );
 
-  const { send, isConnected } = useWebSocket({
-    meetingCode: meeting.meeting_code,
-    clientId,
-    onEvent: handleWsEvent,
+  // Keep the ref current so the stable useWebSocket callback always calls the latest handler
+  useEffect(() => {
+    wsEventHandlerRef.current = handleWsEvent;
   });
 
-  // ── On WS connect: announce presence ──────────────────────────────────────
+  // ── Announce presence when WS connects ────────────────────────────────────
   useEffect(() => {
     if (isConnected) {
       send({
@@ -149,11 +199,10 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
         role: isHost ? "host" : "participant",
       });
     }
-    // Only fire when the connection first opens
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
 
-  // ── On mount: ensure DB participant record + start camera/mic ─────────────
+  // ── Mount: ensure DB participant + start media ─────────────────────────────
   useEffect(() => {
     async function init() {
       if (!participantIdRef.current) {
@@ -170,14 +219,13 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
       await startMedia();
     }
     void init();
-
     return () => {
       stopMedia();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Wrapped toggles that also signal over WS ──────────────────────────────
+  // ── Toggle wrappers that also signal over WS ──────────────────────────────
   const handleToggleAudio = useCallback(() => {
     toggleAudio();
     send({ event: "toggle-audio", isMuted: !isMuted });
@@ -198,7 +246,7 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
       try {
         await api.leaveParticipant(meeting.meeting_code, pid);
       } catch {
-        // best-effort
+        /* best-effort */
       }
     }
     stopMedia();
@@ -212,14 +260,14 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
     try {
       await api.endMeeting(meeting.meeting_code);
     } catch {
-      // best-effort
+      /* best-effort */
     }
     const pid = participantIdRef.current;
     if (pid) {
       try {
         await api.leaveParticipant(meeting.meeting_code, pid);
       } catch {
-        // best-effort
+        /* best-effort */
       }
     }
     stopMedia();
@@ -241,11 +289,13 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           <PermissionError message={error} />
         ) : (
           <VideoGrid
-            localStream={localStream}
+            localStream={localPreviewStream ?? localStream}
             localName={displayName}
             isMuted={isMuted}
             isVideoOn={isVideoOn}
+            isScreenSharing={isScreenSharing}
             remoteParticipants={remoteParticipants}
+            remoteStreams={remoteStreams}
           />
         )}
 
@@ -261,8 +311,12 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
         isMuted={isMuted}
         isVideoOn={isVideoOn}
         isHost={isHost}
+        isScreenSharing={isScreenSharing}
         onToggleAudio={handleToggleAudio}
         onToggleVideo={handleToggleVideo}
+        onToggleScreenShare={
+          isScreenSharing ? stopScreenShare : startScreenShare
+        }
         onToggleSidebar={() => setIsSidebarOpen((o) => !o)}
         onLeave={handleLeave}
         onEnd={handleEnd}

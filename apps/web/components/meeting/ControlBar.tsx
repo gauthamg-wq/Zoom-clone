@@ -1,6 +1,14 @@
 "use client";
 
-import { Mic, MicOff, Video, VideoOff, Monitor, Users } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Monitor,
+  MonitorX,
+  Users,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ZoomButton } from "@/components/ui/zoom-button";
 
@@ -8,8 +16,10 @@ interface ControlBarProps {
   isMuted: boolean;
   isVideoOn: boolean;
   isHost: boolean;
+  isScreenSharing: boolean;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
+  onToggleScreenShare: () => void;
   onToggleSidebar: () => void;
   onLeave: () => void;
   onEnd: () => void;
@@ -46,8 +56,10 @@ export function ControlBar({
   isMuted,
   isVideoOn,
   isHost,
+  isScreenSharing,
   onToggleAudio,
   onToggleVideo,
+  onToggleScreenShare,
   onToggleSidebar,
   onLeave,
   onEnd,
@@ -83,8 +95,16 @@ export function ControlBar({
           )}
         </ControlButton>
 
-        <ControlButton onClick={() => {}} title="Share Screen (coming soon)">
-          <Monitor className="w-5 h-5" />
+        <ControlButton
+          onClick={onToggleScreenShare}
+          active={!isScreenSharing}
+          title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+        >
+          {isScreenSharing ? (
+            <MonitorX className="w-5 h-5" />
+          ) : (
+            <Monitor className="w-5 h-5" />
+          )}
         </ControlButton>
 
         <ControlButton onClick={onToggleSidebar} title="Participants">

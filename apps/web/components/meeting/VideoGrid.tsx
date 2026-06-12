@@ -9,7 +9,9 @@ interface VideoGridProps {
   localName: string;
   isMuted: boolean;
   isVideoOn: boolean;
+  isScreenSharing?: boolean;
   remoteParticipants?: RemoteParticipant[];
+  remoteStreams?: Map<string, MediaStream>;
 }
 
 export function VideoGrid({
@@ -17,7 +19,9 @@ export function VideoGrid({
   localName,
   isMuted,
   isVideoOn,
+  isScreenSharing = false,
   remoteParticipants = [],
+  remoteStreams = new Map(),
 }: VideoGridProps) {
   const totalCount = 1 + remoteParticipants.length;
 
@@ -33,24 +37,24 @@ export function VideoGrid({
 
   return (
     <div className={cn("meeting-bg flex-1 overflow-auto", gridClass)}>
-      {/* Local tile */}
+      {/* Local tile — shows screen stream when sharing, camera otherwise */}
       <div className={totalCount === 1 ? "w-full max-w-2xl aspect-video" : ""}>
         <VideoTile
           stream={localStream}
           displayName={localName}
           isMuted={isMuted}
-          isVideoOn={isVideoOn}
+          isVideoOn={isScreenSharing ? true : isVideoOn}
           isLocal
           isHost
           size={tileSize}
         />
       </div>
 
-      {/* Remote tiles — streams attached in Phase 6 */}
+      {/* Remote tiles — stream arrives via ontrack once WebRTC connects */}
       {remoteParticipants.map((p) => (
         <VideoTile
           key={p.clientId}
-          stream={p.stream}
+          stream={remoteStreams.get(p.clientId) ?? null}
           displayName={p.displayName}
           isMuted={p.is_muted}
           isVideoOn={p.is_video_on}

@@ -16,7 +16,7 @@ todos:
     status: completed
   - id: phase-6
     content: "Phase 6: WebRTC mesh — offer/answer/ICE, remote video streams, screen share"
-    status: pending
+    status: completed
   - id: phase-7
     content: "Phase 7: Host controls — mute/remove/end meeting"
     status: pending

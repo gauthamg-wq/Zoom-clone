@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -6,11 +7,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from routers import meetings, participants
+from seed import seed
 from websocket import signaling
 
 load_dotenv()
 
-app = FastAPI(title="Zoom Clone API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    seed()
+    yield
+
+
+app = FastAPI(title="Zoom Clone API", version="0.1.0", lifespan=lifespan)
 
 # --- CORS ---
 # Comma-separated list of allowed origins.
@@ -25,10 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- DB init ---
-# Creates all tables on startup if they do not exist (no Alembic for MVP).
-Base.metadata.create_all(bind=engine)
 
 # --- Routers ---
 app.include_router(meetings.router, prefix="/meetings", tags=["meetings"])

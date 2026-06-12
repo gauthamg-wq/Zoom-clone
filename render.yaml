@@ -19,6 +19,5 @@ services:
       - key: DEFAULT_USER_ID
         value: "1"
     # Free-tier limitation: Render's free web services use an ephemeral
-    # filesystem. SQLite data is lost on every redeploy or restart.
-    # Run `uv run python seed.py` in the Render shell (rootDir is apps/api) after each deploy to
-    # repopulate the default user. Persistent disk is a paid Render feature.
+    # filesystem. SQLite data is lost on every redeploy or restart; seed.py
+    # runs automatically on startup. Persistent disk is a paid Render feature.

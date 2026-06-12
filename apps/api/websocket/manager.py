@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from fastapi import WebSocket
 
 
@@ -12,7 +12,14 @@ class ParticipantState:
     is_screen_sharing: bool = False
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return {
+            "clientId": self.client_id,
+            "displayName": self.display_name,
+            "role": self.role,
+            "is_muted": self.is_muted,
+            "is_video_on": self.is_video_on,
+            "is_screen_sharing": self.is_screen_sharing,
+        }
 
 
 class ConnectionManager:

@@ -8,6 +8,9 @@ WEB_FILTER  := @zoom-clone/web
 API_FILTER  := @zoom-clone/api
 API_PORT    ?= 8000
 WEB_PORT    ?= 3000
+NGROK_YML   := ngrok.yml
+NGROK_CONFIG := $(HOME)/.config/ngrok/ngrok.yml
+CLOUDFLARED ?= $(shell command -v cloudflared 2>/dev/null || echo $(HOME)/.local/bin/cloudflared)
 
 # ─── Help ────────────────────────────────────────────────────────────────────
 .PHONY: help
@@ -47,6 +50,46 @@ dev-web: ## Start the Next.js frontend only
 
 dev-api: ## Start the FastAPI backend only (hot reload)
 	cd $(API_DIR) && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port $(API_PORT)
+
+# ─── Remote dev tunnels ──────────────────────────────────────────────────────
+# ngrok free tier provides one dev domain — use it for the frontend only.
+# Cloudflare quick tunnels get a new URL on each restart — use for the API.
+# Run `make tunnel` for the full setup checklist.
+.PHONY: tunnel tunnel-ngrok tunnel-cloudflare install-cloudflared
+tunnel: ## Print remote dev setup (dev server + ngrok + cloudflared)
+	@printf "\nRemote dev — run each command in its own terminal:\n\n"
+	@printf "  1. make dev\n"
+	@printf "  2. make tunnel-ngrok          # frontend → open the ngrok URL in a browser\n"
+	@printf "  3. make tunnel-cloudflare     # API — copy the trycloudflare.com URL\n\n"
+	@printf "Then update env files and restart the dev server:\n\n"
+	@printf "  apps/web/.env.local\n"
+	@printf "    NEXT_PUBLIC_API_URL=https://<cloudflared-url>\n"
+	@printf "    NEXT_PUBLIC_WS_URL=wss://<cloudflared-url>\n\n"
+	@printf "  apps/api/.env\n"
+	@printf "    CORS_ORIGINS=http://localhost:3000,https://<ngrok-url>\n"
+	@printf "    (no trailing slashes)\n\n"
+	@printf "See apps/web/.env.example and apps/api/.env.example for details.\n\n"
+
+tunnel-ngrok: ## Expose frontend (port 3000) via ngrok
+	@test -f $(NGROK_YML) || { echo "Missing $(NGROK_YML). Set your ngrok dev domain under tunnels.web.domain."; exit 1; }
+	@test -f $(NGROK_CONFIG) || { echo "Missing $(NGROK_CONFIG). Run: ngrok config add-authtoken <token>"; exit 1; }
+	ngrok start web --config $(NGROK_CONFIG) --config $(NGROK_YML)
+
+tunnel-cloudflare: ## Expose API (port 8000) via Cloudflare quick tunnel
+	@test -x $(CLOUDFLARED) || { printf "cloudflared not found at $(CLOUDFLARED).\nRun: make install-cloudflared\n"; exit 1; }
+	$(CLOUDFLARED) tunnel --url http://localhost:$(API_PORT)
+
+install-cloudflared: ## Install cloudflared to ~/.local/bin
+	@mkdir -p $(HOME)/.local/bin
+	@arch=$$(uname -m); \
+	case $$arch in \
+		x86_64)  url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" ;; \
+		aarch64|arm64) url="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" ;; \
+		*) echo "Unsupported arch: $$arch"; exit 1 ;; \
+	esac; \
+	curl -L "$$url" -o $(HOME)/.local/bin/cloudflared && chmod +x $(HOME)/.local/bin/cloudflared
+	@$(CLOUDFLARED) --version
+	@printf "\ncloudflared installed. Ensure ~/.local/bin is on your PATH.\n"
 
 # ─── Build & run ─────────────────────────────────────────────────────────────
 .PHONY: build build-web start start-web start-api

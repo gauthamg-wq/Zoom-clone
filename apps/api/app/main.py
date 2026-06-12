@@ -1,11 +1,14 @@
 import os
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from routers import meetings, participants
 from websocket import signaling
+
+load_dotenv()
 
 app = FastAPI(title="Zoom Clone API", version="0.1.0")
 

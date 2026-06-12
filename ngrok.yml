@@ -1,0 +1,10 @@
+# Remote dev frontend tunnel — used by `make tunnel-ngrok`.
+# Set tunnels.web.domain to your ngrok dev domain (ngrok dashboard → Domains).
+# Do not add an API tunnel here; ngrok free tier shares one domain per agent.
+# Use `make tunnel-cloudflare` for the API on port 8000.
+version: "2"
+tunnels:
+  web:
+    addr: 3000
+    proto: http
+    domain: thirsty-backward-bonsai.ngrok-free.dev

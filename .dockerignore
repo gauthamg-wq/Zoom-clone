@@ -1,0 +1,29 @@
+# Node
+node_modules
+.next
+.turbo
+
+# Python
+__pycache__
+*.py[cod]
+.venv
+apps/api/data/*.db
+
+# Git / IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Env
+.env
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed in image)
+docs
+README.md

@@ -1,0 +1,17 @@
+[project]
+name = "zoom-clone-api"
+version = "0.1.0"
+description = "FastAPI backend for Zoom Clone"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+# This project is a FastAPI application, not a distributable Python package.
+# Disable the build step so `uv sync` only installs dependencies.
+package = false

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: zoom-clone-api
+    runtime: python
+    # uv must be available on PATH; Render's Python runtime includes pip so we
+    # bootstrap uv first, then let it manage the virtual environment.
+    buildCommand: pip install uv && cd apps/api && uv sync
+    startCommand: cd apps/api && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CORS_ORIGINS
+        # Set this to your Vercel deployment URL after the frontend is deployed.
+        # Example: https://zoom-clone-abc.vercel.app,http://localhost:3000
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:///./data/zoom.db
+      - key: DEFAULT_USER_ID
+        value: "1"
+    # Free-tier limitation: Render's free web services use an ephemeral
+    # filesystem. SQLite data is lost on every redeploy or restart.
+    # Run `uv run python seed.py` in the Render shell after each deploy to
+    # repopulate the default user. Persistent disk is a paid Render feature.

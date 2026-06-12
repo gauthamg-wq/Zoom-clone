@@ -161,11 +161,16 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           break;
 
         case "meeting-ended":
-        case "removed-from-meeting":
           stopMedia();
-          router.push("/dashboard");
+          router.push("/dashboard?ended=1");
           break;
 
+        case "removed-from-meeting":
+          stopMedia();
+          router.push("/dashboard?removed=1");
+          break;
+
+        case "all-muted":
         case "host-muted-you":
           if (!isMuted) toggleAudio();
           break;
@@ -302,6 +307,10 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
         {isSidebarOpen && (
           <ParticipantsSidebar
             meetingCode={meeting.meeting_code}
+            localName={displayName}
+            isHost={isHost}
+            remoteParticipants={remoteParticipants}
+            send={send}
             onClose={() => setIsSidebarOpen(false)}
           />
         )}
@@ -318,6 +327,7 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           isScreenSharing ? stopScreenShare : startScreenShare
         }
         onToggleSidebar={() => setIsSidebarOpen((o) => !o)}
+        onMuteAll={isHost ? () => send({ event: "mute-all" }) : undefined}
         onLeave={handleLeave}
         onEnd={handleEnd}
       />

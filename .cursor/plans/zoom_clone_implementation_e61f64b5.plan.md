@@ -19,7 +19,7 @@ todos:
     status: completed
   - id: phase-7
     content: "Phase 7: Host controls — mute/remove/end meeting"
-    status: pending
+    status: completed
   - id: phase-8
     content: "Phase 8: Polish — responsive design, error states, seed data, README update"
     status: pending

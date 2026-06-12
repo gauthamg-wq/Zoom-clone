@@ -6,6 +6,7 @@ import {
   Monitor,
   MonitorX,
   Users,
+  UserX,
   Video,
   VideoOff,
 } from "lucide-react";
@@ -21,6 +22,7 @@ interface ControlBarProps {
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
   onToggleSidebar: () => void;
+  onMuteAll?: () => void;
   onLeave: () => void;
   onEnd: () => void;
 }
@@ -61,6 +63,7 @@ export function ControlBar({
   onToggleVideo,
   onToggleScreenShare,
   onToggleSidebar,
+  onMuteAll,
   onLeave,
   onEnd,
 }: ControlBarProps) {
@@ -110,6 +113,12 @@ export function ControlBar({
         <ControlButton onClick={onToggleSidebar} title="Participants">
           <Users className="w-5 h-5" />
         </ControlButton>
+
+        {isHost && onMuteAll && (
+          <ControlButton onClick={onMuteAll} title="Mute All Participants">
+            <UserX className="w-5 h-5" />
+          </ControlButton>
+        )}
       </div>
 
       {/* Right: Leave/End */}

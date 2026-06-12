@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DashboardNavbar } from "@/components/dashboard/DashboardNavbar";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { UpcomingMeetings } from "@/components/dashboard/UpcomingMeetings";
@@ -31,6 +32,20 @@ function DashboardSkeleton() {
   );
 }
 
+function MeetingBanner() {
+  const params = useSearchParams();
+  const removed = params.get("removed") === "1";
+  const ended = params.get("ended") === "1";
+  if (!removed && !ended) return null;
+  return (
+    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700">
+      {removed
+        ? "You were removed from the meeting by the host."
+        : "The meeting has ended."}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [upcoming, setUpcoming] = useState<Meeting[]>([]);
   const [recent, setRecent] = useState<RecentMeeting[]>([]);
@@ -55,6 +70,9 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background">
       <DashboardNavbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
+        <Suspense>
+          <MeetingBanner />
+        </Suspense>
         {loading ? (
           <DashboardSkeleton />
         ) : error ? (

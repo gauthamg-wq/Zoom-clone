@@ -1,8 +1,15 @@
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from app.database import SessionLocal
+from app import models
 from .manager import ParticipantState, manager
 
 router = APIRouter()
+
+
+def _is_host(meeting_code: str, client_id: str) -> bool:
+    entry = manager.rooms.get(meeting_code, {}).get(client_id)
+    return entry is not None and entry[1].role == "host"
 
 
 @router.websocket("/ws/{meeting_code}")
@@ -19,10 +26,7 @@ async def signaling_endpoint(
 
     URL: /ws/{meeting_code}?client_id=<uuid>
     """
-    # Accept the socket before any receive so the client can start sending
     await websocket.accept()
-
-    # The participant slot is registered after the join-room event arrives
     joined = False
 
     try:
@@ -31,6 +35,7 @@ async def signaling_endpoint(
             event: str = data.get("event", "")
 
             match event:
+                # ── Room join ────────────────────────────────────────────────
                 case "join-room":
                     participant = ParticipantState(
                         client_id=client_id,
@@ -40,7 +45,6 @@ async def signaling_endpoint(
                     await manager.connect(meeting_code, client_id, websocket, participant)
                     joined = True
 
-                    # Tell the newcomer who is already in the room
                     existing = manager.get_participants(meeting_code)
                     await manager.send_to(
                         meeting_code,
@@ -54,8 +58,6 @@ async def signaling_endpoint(
                             ],
                         },
                     )
-
-                    # Notify everyone else
                     await manager.broadcast(
                         meeting_code,
                         {
@@ -70,7 +72,7 @@ async def signaling_endpoint(
                 case "leave-room":
                     break
 
-                # --- WebRTC peer-to-peer routing ---
+                # ── WebRTC peer-to-peer routing ──────────────────────────────
                 case "offer" | "answer" | "ice-candidate":
                     target = data.get("targetClientId")
                     if target:
@@ -80,7 +82,7 @@ async def signaling_endpoint(
                             {**data, "clientId": client_id},
                         )
 
-                # --- Media state ---
+                # ── Media state ──────────────────────────────────────────────
                 case "toggle-audio":
                     is_muted: bool = bool(data.get("isMuted", False))
                     await manager.update_participant(
@@ -131,45 +133,95 @@ async def signaling_endpoint(
                         exclude=client_id,
                     )
 
-                # --- Host controls (Phase 7 actions already routed here) ---
+                # ── Host controls ────────────────────────────────────────────
                 case "mute-participant":
-                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
-                    if sender and sender[1].role == "host":
-                        target = data.get("targetClientId")
-                        if target:
-                            await manager.send_to(
-                                meeting_code,
-                                target,
-                                {"event": "host-muted-you"},
-                            )
+                    if not _is_host(meeting_code, client_id):
+                        await manager.send_to(
+                            meeting_code, client_id,
+                            {"event": "error", "message": "Not authorized"}
+                        )
+                        continue
+                    target = data.get("targetClientId")
+                    if target:
+                        await manager.update_participant(
+                            meeting_code, target, is_muted=True
+                        )
+                        await manager.send_to(
+                            meeting_code, target,
+                            {"event": "host-muted-you", "by": client_id}
+                        )
+                        # Notify whole room so all tiles update
+                        await manager.broadcast(
+                            meeting_code,
+                            {
+                                "event": "participant-audio-updated",
+                                "clientId": target,
+                                "isMuted": True,
+                            },
+                        )
 
                 case "mute-all":
-                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
-                    if sender and sender[1].role == "host":
-                        await manager.broadcast(
-                            meeting_code,
-                            {"event": "all-muted", "by": client_id},
-                            exclude=client_id,
-                        )
+                    if not _is_host(meeting_code, client_id):
+                        continue
+                    for pid, (ws, state) in list(
+                        manager.rooms.get(meeting_code, {}).items()
+                    ):
+                        if pid != client_id:
+                            state.is_muted = True
+                            try:
+                                await ws.send_json(
+                                    {"event": "host-muted-you", "by": client_id}
+                                )
+                            except Exception:
+                                pass
+                    await manager.broadcast(
+                        meeting_code,
+                        {"event": "all-muted", "by": client_id},
+                    )
 
                 case "remove-participant":
-                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
-                    if sender and sender[1].role == "host":
-                        target = data.get("targetClientId")
-                        if target:
-                            await manager.send_to(
-                                meeting_code,
-                                target,
-                                {"event": "removed-from-meeting"},
-                            )
-
-                case "end-meeting":
-                    sender = manager.rooms.get(meeting_code, {}).get(client_id)
-                    if sender and sender[1].role == "host":
+                    if not _is_host(meeting_code, client_id):
+                        await manager.send_to(
+                            meeting_code, client_id,
+                            {"event": "error", "message": "Not authorized"}
+                        )
+                        continue
+                    target = data.get("targetClientId")
+                    if target:
+                        await manager.send_to(
+                            meeting_code, target,
+                            {"event": "removed-from-meeting"}
+                        )
+                        manager.disconnect(meeting_code, target)
                         await manager.broadcast(
                             meeting_code,
-                            {"event": "meeting-ended"},
+                            {"event": "participant-left", "clientId": target},
                         )
+
+                case "end-meeting":
+                    if not _is_host(meeting_code, client_id):
+                        continue
+                    # Update DB status
+                    try:
+                        with SessionLocal() as db:
+                            meeting = (
+                                db.query(models.Meeting)
+                                .filter_by(meeting_code=meeting_code)
+                                .first()
+                            )
+                            if meeting:
+                                meeting.status = "ended"
+                                db.commit()
+                    except Exception:
+                        pass
+                    # Notify all clients including the host
+                    await manager.broadcast(
+                        meeting_code,
+                        {"event": "meeting-ended", "by": client_id},
+                    )
+                    # Clean up room
+                    for pid in list(manager.rooms.get(meeting_code, {}).keys()):
+                        manager.disconnect(meeting_code, pid)
 
     except WebSocketDisconnect:
         pass

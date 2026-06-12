@@ -7,7 +7,7 @@ todos:
     status: completed
   - id: phase-3
     content: "Phase 3: Build dashboard UI, join/schedule pages, API client"
-    status: pending
+    status: completed
   - id: phase-4
     content: "Phase 4: Meeting room layout, camera/mic preview with useMediaDevices"
     status: pending

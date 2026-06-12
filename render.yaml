@@ -2,6 +2,7 @@ services:
   - type: web
     name: zoom-clone-api
     runtime: python
+    plan: free
     # uv must be available on PATH; Render's Python runtime includes pip so we
     # bootstrap uv first, then let it manage the virtual environment.
     buildCommand: pip install uv && cd apps/api && uv sync

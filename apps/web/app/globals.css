@@ -190,4 +190,15 @@
   .video-tile-placeholder {
     @apply bg-gray-900 rounded-lg flex items-center justify-center;
   }
+
+  .meeting-bg {
+    background-color: #1c1c1c;
+  }
+
+  .meeting-root {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 }

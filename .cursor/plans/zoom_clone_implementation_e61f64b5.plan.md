@@ -10,7 +10,7 @@ todos:
     status: completed
   - id: phase-4
     content: "Phase 4: Meeting room layout, camera/mic preview with useMediaDevices"
-    status: pending
+    status: completed
   - id: phase-5
     content: "Phase 5: Full WebSocket signaling event protocol (backend + frontend hook)"
     status: pending

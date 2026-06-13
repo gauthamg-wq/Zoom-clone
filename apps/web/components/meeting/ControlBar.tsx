@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  MessageSquare,
   Mic,
   MicOff,
   Monitor,
@@ -18,10 +19,12 @@ interface ControlBarProps {
   isVideoOn: boolean;
   isHost: boolean;
   isScreenSharing: boolean;
+  unreadCount?: number;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
   onToggleSidebar: () => void;
+  onToggleChat: () => void;
   onMuteAll?: () => void;
   onLeave: () => void;
   onEnd: () => void;
@@ -59,10 +62,12 @@ export function ControlBar({
   isVideoOn,
   isHost,
   isScreenSharing,
+  unreadCount = 0,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
   onToggleSidebar,
+  onToggleChat,
   onMuteAll,
   onLeave,
   onEnd,
@@ -114,6 +119,17 @@ export function ControlBar({
           <Users className="w-5 h-5" />
         </ControlButton>
 
+        <div className="relative">
+          <ControlButton onClick={onToggleChat} title="Chat">
+            <MessageSquare className="w-5 h-5" />
+          </ControlButton>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 leading-none pointer-events-none">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
+
         {isHost && onMuteAll && (
           <ControlButton onClick={onMuteAll} title="Mute All Participants">
             <UserX className="w-5 h-5" />
@@ -122,11 +138,21 @@ export function ControlBar({
       </div>
 
       {/* Right: Leave/End */}
-      <div className="flex-1 flex justify-end sm:flex-1">
+      <div className="flex-1 flex justify-end gap-2 sm:flex-1">
         {isHost ? (
-          <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
-            End Meeting
-          </ZoomButton>
+          <>
+            <ZoomButton
+              variant="outline"
+              size="sm"
+              className="border-red-600 text-red-400 hover:bg-red-600/10"
+              onClick={onLeave}
+            >
+              Leave
+            </ZoomButton>
+            <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
+              End for All
+            </ZoomButton>
+          </>
         ) : (
           <ZoomButton
             variant="outline"

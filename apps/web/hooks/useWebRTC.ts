@@ -7,6 +7,18 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    {
+      urls: process.env.NEXT_PUBLIC_TURN_URL ?? "turn:openrelay.metered.ca:80",
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME ?? "openrelayproject",
+      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? "openrelayproject",
+    },
+    {
+      urls:
+        process.env.NEXT_PUBLIC_TURN_URL_TCP ??
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME ?? "openrelayproject",
+      credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? "openrelayproject",
+    },
   ],
 };
 
@@ -44,14 +56,13 @@ export function useWebRTC({
   const [localPreviewStream, setLocalPreviewStream] =
     useState<MediaStream | null>(null);
 
-  // Keep stable refs so callbacks don't go stale
+  // Update refs synchronously on every render so callbacks always see the latest
+  // values regardless of when they're called from macrotask-queue events (WS, ICE).
+  // Refs never cause re-renders so this is safe.
   const sendRef = useRef(send);
   const localStreamRef = useRef(localStream);
-
-  useEffect(() => {
-    sendRef.current = send;
-    localStreamRef.current = localStream;
-  }, [send, localStream]);
+  sendRef.current = send;
+  localStreamRef.current = localStream;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -106,7 +117,8 @@ export function useWebRTC({
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    // Add local camera/mic tracks
+    // Add local camera/mic tracks. localStreamRef.current is updated synchronously
+    // on every render so this always reflects the latest value.
     const stream = localStreamRef.current;
     if (stream) {
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
@@ -160,6 +172,52 @@ export function useWebRTC({
       sdp: offer,
     });
   }
+
+  // ── Retroactive track injection ────────────────────────────────────────────
+  // Handles two edge cases:
+  //  1. PCs created before localStream was ready (no senders yet) — add all
+  //     tracks and re-negotiate with a fresh offer.
+  //  2. PCs created with stopped/ended tracks (React Strict Mode runs the effect
+  //     cleanup before re-mounting, calling stopMedia() which ends all tracks on
+  //     the inherited lobby stream). Replace each dead sender in-place via
+  //     replaceTrack(), which does not require renegotiation.
+  useEffect(() => {
+    if (!localStream) return;
+    for (const [remoteId, pc] of peerConnections.current.entries()) {
+      const senders = pc.getSenders();
+
+      if (senders.length === 0) {
+        localStream
+          .getTracks()
+          .forEach((track) => pc.addTrack(track, localStream));
+        void pc
+          .createOffer()
+          .then((offer) => pc.setLocalDescription(offer).then(() => offer))
+          .then((offer) =>
+            sendRef.current({
+              event: "offer",
+              targetClientId: remoteId,
+              sdp: offer,
+            }),
+          )
+          .catch(() => {});
+        continue;
+      }
+
+      const hasDeadTracks = senders.some(
+        (s) => !s.track || s.track.readyState === "ended",
+      );
+      if (!hasDeadTracks) continue;
+
+      for (const sender of senders) {
+        if (!sender.track || sender.track.readyState !== "ended") continue;
+        const replacement = localStream
+          .getTracks()
+          .find((t) => t.kind === sender.track!.kind);
+        if (replacement) void sender.replaceTrack(replacement);
+      }
+    }
+  }, [localStream]);
 
   // ── Public handlers ───────────────────────────────────────────────────────
 

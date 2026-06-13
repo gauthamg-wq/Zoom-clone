@@ -6,7 +6,6 @@ import { Video, Plus, Calendar } from "lucide-react";
 import { ZoomButton } from "@/components/ui/zoom-button";
 import { ZoomCard, ZoomCardContent } from "@/components/ui/zoom-card";
 import { api } from "@/lib/api";
-import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 
 export function QuickActions() {
   const router = useRouter();
@@ -16,13 +15,7 @@ export function QuickActions() {
     setStarting(true);
     try {
       const meeting = await api.createInstantMeeting();
-      const { participant } = await api.joinMeeting(
-        meeting.meeting_code,
-        DEFAULT_DISPLAY_NAME,
-      );
-      router.push(
-        `/meeting/${meeting.meeting_code}?name=${encodeURIComponent(DEFAULT_DISPLAY_NAME)}&participantId=${participant.id}`,
-      );
+      router.push(`/meeting/${meeting.meeting_code}`);
     } catch {
       setStarting(false);
     }

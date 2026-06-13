@@ -11,6 +11,7 @@ interface UseMediaDevicesReturn {
   toggleVideo: () => void;
   startMedia: () => Promise<void>;
   stopMedia: () => void;
+  initWithStream: (stream: MediaStream) => void;
 }
 
 export function useMediaDevices(): UseMediaDevicesReturn {
@@ -24,20 +25,33 @@ export function useMediaDevices(): UseMediaDevicesReturn {
 
   const startMedia = useCallback(async () => {
     setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      streamRef.current = stream;
-      setLocalStream(stream);
-    } catch (err: unknown) {
-      const message =
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Camera/microphone permission denied. Please allow access and refresh."
-          : "Could not access camera or microphone.";
-      setError(message);
+    // Try full media first, then fallback to audio-only, then video-only
+    const attempts: MediaStreamConstraints[] = [
+      { video: true, audio: true },
+      { video: false, audio: true },
+      { video: true, audio: false },
+    ];
+    for (const constraints of attempts) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        setLocalStream(stream);
+        if (!constraints.video) setIsVideoOn(false);
+        if (!constraints.audio) setIsMuted(true);
+        if (JSON.stringify(constraints) !== JSON.stringify(attempts[0])) {
+          const label = !constraints.video
+            ? "Camera unavailable — joining with audio only."
+            : "Microphone unavailable — joining with video only.";
+          setError(label);
+        }
+        return;
+      } catch {
+        // Try next fallback
+      }
     }
+    setError(
+      "Could not access camera or microphone. Check browser permissions and try again.",
+    );
   }, []);
 
   const stopMedia = useCallback(() => {
@@ -64,6 +78,18 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     setIsVideoOn((prev) => !prev);
   }, []);
 
+  // Use a stream that was already acquired (e.g. from the pre-join lobby)
+  // without calling getUserMedia again.
+  const initWithStream = useCallback((stream: MediaStream) => {
+    streamRef.current = stream;
+    setLocalStream(stream);
+    setError(null);
+    const audioEnabled = stream.getAudioTracks()[0]?.enabled ?? true;
+    const videoEnabled = stream.getVideoTracks()[0]?.enabled ?? false;
+    setIsMuted(!audioEnabled);
+    setIsVideoOn(videoEnabled || stream.getVideoTracks().length === 0);
+  }, []);
+
   return {
     localStream,
     isMuted,
@@ -73,5 +99,6 @@ export function useMediaDevices(): UseMediaDevicesReturn {
     toggleVideo,
     startMedia,
     stopMedia,
+    initWithStream,
   };
 }

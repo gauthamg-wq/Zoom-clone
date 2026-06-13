@@ -25,15 +25,26 @@ export function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Attach the stream to the video element whenever it changes
   useEffect(() => {
     const el = videoRef.current;
-    if (el && stream) {
-      el.srcObject = stream;
-    }
+    if (!el) return;
+    el.srcObject = stream;
     return () => {
       if (el) el.srcObject = null;
     };
   }, [stream]);
+
+  // Browsers don't re-trigger autoPlay when a hidden (display:none) element
+  // becomes visible. Call play() explicitly whenever the video should be shown
+  // or whenever a new stream is attached while the video is already visible.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !isVideoOn || !stream) return;
+    void el.play().catch(() => {
+      // Autoplay policy may block in certain contexts; safe to ignore
+    });
+  }, [isVideoOn, stream]);
 
   const name = displayName || "Participant";
   const initial = name.charAt(0).toUpperCase();
@@ -42,9 +53,9 @@ export function VideoTile({
     <div
       className={cn(
         "relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center",
-        size === "large" && "aspect-video",
-        size === "normal" && "aspect-video",
-        size === "small" && "aspect-video",
+        // "large" keeps a fixed 16:9 ratio (solo tile); other sizes fill their
+        // grid cell so they adapt to available height on any screen size.
+        size === "large" ? "aspect-video w-full" : "h-full w-full min-h-[80px]",
       )}
     >
       {/* Video element — always mounted so srcObject assignment works */}

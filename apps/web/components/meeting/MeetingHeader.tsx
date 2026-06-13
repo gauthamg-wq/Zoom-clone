@@ -69,11 +69,21 @@ export function MeetingHeader({
       </div>
 
       {/* Leave / End */}
-      <div>
+      <div className="flex items-center gap-2">
         {isHost ? (
-          <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
-            End Meeting
-          </ZoomButton>
+          <>
+            <ZoomButton
+              variant="outline"
+              size="sm"
+              className="border-red-600 text-red-400 hover:bg-red-600/10"
+              onClick={onLeave}
+            >
+              Leave
+            </ZoomButton>
+            <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
+              End for All
+            </ZoomButton>
+          </>
         ) : (
           <ZoomButton
             variant="outline"

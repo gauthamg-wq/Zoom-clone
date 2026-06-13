@@ -198,6 +198,26 @@ async def signaling_endpoint(
                             {"event": "participant-left", "clientId": target},
                         )
 
+                # ── Chat ────────────────────────────────────────────────────
+                case "chat-message":
+                    from datetime import datetime, timezone
+
+                    text: str = str(data.get("text", "")).strip()
+                    if not text:
+                        continue
+                    await manager.broadcast(
+                        meeting_code,
+                        {
+                            "event": "chat-message",
+                            "clientId": client_id,
+                            "displayName": manager.rooms[meeting_code][client_id][
+                                1
+                            ].display_name,
+                            "text": text,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
                 case "end-meeting":
                     if not _is_host(meeting_code, client_id):
                         continue
@@ -227,8 +247,16 @@ async def signaling_endpoint(
         pass
     finally:
         if joined:
-            manager.disconnect(meeting_code, client_id)
-            await manager.broadcast(
-                meeting_code,
-                {"event": "participant-left", "clientId": client_id},
-            )
+            # Guard: only clean up the room entry if this WebSocket is still the
+            # active connection for this client_id. In React Strict Mode (dev),
+            # the effect cleanup closes the first WS while a second WS with the
+            # same client_id has already registered. Without this check the stale
+            # cleanup would evict the live session and broadcast a false
+            # participant-left to everyone in the room.
+            current = manager.rooms.get(meeting_code, {}).get(client_id)
+            if current is not None and current[0] is websocket:
+                manager.disconnect(meeting_code, client_id)
+                await manager.broadcast(
+                    meeting_code,
+                    {"event": "participant-left", "clientId": client_id},
+                )

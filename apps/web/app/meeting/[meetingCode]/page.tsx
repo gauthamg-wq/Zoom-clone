@@ -1,7 +1,6 @@
-import { Suspense } from "react";
 import { API_URL } from "@/lib/constants";
 import type { Meeting } from "@/lib/types";
-import { MeetingRoom } from "./MeetingRoom";
+import { MeetingPageClient } from "./MeetingPageClient";
 
 async function fetchMeeting(code: string): Promise<Meeting | null> {
   try {
@@ -44,9 +43,5 @@ export default async function MeetingPage({ params }: PageProps) {
   const { meetingCode } = await params;
   const meeting = await fetchMeeting(meetingCode);
   if (!meeting) return <MeetingNotFound code={meetingCode} />;
-  return (
-    <Suspense>
-      <MeetingRoom meeting={meeting} />
-    </Suspense>
-  );
+  return <MeetingPageClient meeting={meeting} />;
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { MeetingHeader } from "@/components/meeting/MeetingHeader";
 import { VideoGrid } from "@/components/meeting/VideoGrid";
 import { ControlBar } from "@/components/meeting/ControlBar";
+import { ChatSidebar } from "@/components/meeting/ChatSidebar";
 import { ParticipantsSidebar } from "@/components/meeting/ParticipantsSidebar";
 import { useMediaDevices } from "@/hooks/useMediaDevices";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -12,39 +13,71 @@ import { useWebRTC } from "@/hooks/useWebRTC";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
-import type { Meeting, RemoteParticipant, WSEvent } from "@/lib/types";
+import type {
+  ChatMessage,
+  Meeting,
+  RemoteParticipant,
+  WSEvent,
+} from "@/lib/types";
 
 interface MeetingRoomProps {
   meeting: Meeting;
+  /** Display name determined by the pre-join lobby. Falls back to DEFAULT_DISPLAY_NAME. */
+  displayName?: string;
+  /** Stream acquired in the pre-join lobby. When provided, getUserMedia is not called again. */
+  existingStream?: MediaStream | null;
+  /** DB participant ID already created in the lobby. When provided, api.joinMeeting is not called. */
+  participantId?: number | null;
+  /** Role determined by the lobby API response. */
+  initialRole?: "host" | "participant";
 }
 
-function PermissionError({ message }: { message: string }) {
+function MediaErrorBanner({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  const isFatal = message.includes("try again");
   return (
-    <div className="flex-1 meeting-bg flex items-center justify-center">
-      <div className="text-center space-y-3 max-w-sm px-4">
-        <div className="text-4xl">🎥</div>
-        <p className="text-white font-semibold">Camera access required</p>
-        <p className="text-gray-400 text-sm">{message}</p>
-      </div>
+    <div className="flex items-center gap-3 bg-yellow-500/10 border-b border-yellow-500/30 px-4 py-2 text-sm text-yellow-400 shrink-0">
+      <span className="flex-1">{message}</span>
+      {isFatal && (
+        <button
+          onClick={onRetry}
+          className="shrink-0 text-xs underline hover:text-yellow-300 transition"
+        >
+          Try Again
+        </button>
+      )}
     </div>
   );
 }
 
-export function MeetingRoom({ meeting }: MeetingRoomProps) {
+export function MeetingRoom({
+  meeting,
+  displayName: displayNameProp,
+  existingStream,
+  participantId: participantIdProp,
+  initialRole,
+}: MeetingRoomProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const displayName = searchParams.get("name") ?? DEFAULT_DISPLAY_NAME;
-  const participantIdParam = searchParams.get("participantId");
+  const displayName = displayNameProp ?? DEFAULT_DISPLAY_NAME;
 
-  const participantIdRef = useRef<number | null>(
-    participantIdParam ? parseInt(participantIdParam, 10) : null,
-  );
+  const participantIdRef = useRef<number | null>(participantIdProp ?? null);
 
   const clientId = useMemo(() => crypto.randomUUID(), []);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [myRole, setMyRole] = useState<"host" | "participant">(
+    initialRole ?? "participant",
+  );
   const [remoteParticipants, setRemoteParticipants] = useState<
     RemoteParticipant[]
   >([]);
@@ -61,9 +94,10 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
     toggleVideo,
     startMedia,
     stopMedia,
+    initWithStream,
   } = useMediaDevices();
 
-  const isHost = meeting.host_user_id === 1;
+  const isHost = myRole === "host";
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   // handleWsEvent is defined after useWebRTC to close over its handlers,
@@ -154,6 +188,26 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           );
           break;
 
+        case "screen-share-started":
+          setRemoteParticipants((prev) =>
+            prev.map((p) =>
+              p.clientId === ev.clientId
+                ? { ...p, is_screen_sharing: true }
+                : p,
+            ),
+          );
+          break;
+
+        case "screen-share-stopped":
+          setRemoteParticipants((prev) =>
+            prev.map((p) =>
+              p.clientId === ev.clientId
+                ? { ...p, is_screen_sharing: false }
+                : p,
+            ),
+          );
+          break;
+
         // Route WebRTC signals into the hook
         case "offer":
         case "answer":
@@ -181,11 +235,30 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
           }
           break;
 
+        case "chat-message":
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              clientId: ev.clientId,
+              displayName: ev.displayName,
+              text: ev.text,
+              timestamp: ev.timestamp,
+              isOwn: ev.clientId === clientId,
+            },
+          ]);
+          setIsChatOpen((open) => {
+            if (!open) setUnreadCount((n) => n + 1);
+            return open;
+          });
+          break;
+
         default:
           break;
       }
     },
     [
+      clientId,
       handleExistingParticipants,
       handleParticipantLeft,
       handleSignal,
@@ -213,9 +286,10 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isConnected]);
 
-  // ── Mount: ensure DB participant + start media ─────────────────────────────
+  // ── Mount: ensure DB participant + acquire / adopt media ──────────────────
   useEffect(() => {
     async function init() {
+      // If the lobby already registered the participant, skip the API call.
       if (!participantIdRef.current) {
         try {
           const { participant } = await api.joinMeeting(
@@ -223,11 +297,27 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
             displayName,
           );
           participantIdRef.current = participant.id;
+          setMyRole(participant.role as "host" | "participant");
         } catch {
           // best-effort
         }
       }
-      await startMedia();
+
+      // Use the lobby stream only if its tracks are still live.
+      // React Strict Mode runs the effect cleanup once before re-mounting,
+      // which calls stopMedia() and ends all tracks on existingStream. On the
+      // second mount we detect the dead tracks and call startMedia() instead
+      // so the user always gets a working stream in development.
+      const streamIsLive =
+        existingStream !== null &&
+        existingStream !== undefined &&
+        existingStream.getTracks().some((t) => t.readyState === "live");
+
+      if (streamIsLive) {
+        initWithStream(existingStream!);
+      } else {
+        await startMedia();
+      }
     }
     void init();
     return () => {
@@ -244,8 +334,19 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
 
   const handleToggleVideo = useCallback(() => {
     toggleVideo();
-    send({ event: "toggle-video", isVideoOn: !isVideoOn });
-  }, [isVideoOn, send, toggleVideo]);
+    // While screen sharing the remote video track is the screen, not the camera.
+    // Sending toggle-video would wrongly hide the screen on remote tiles.
+    if (!isScreenSharing) {
+      send({ event: "toggle-video", isVideoOn: !isVideoOn });
+    }
+  }, [isVideoOn, isScreenSharing, send, toggleVideo]);
+
+  // When screen sharing stops, re-broadcast the actual camera state so remote
+  // tiles correctly reflect whether the camera is on or off.
+  const handleStopScreenShare = useCallback(() => {
+    stopScreenShare();
+    send({ event: "toggle-video", isVideoOn: isVideoOn });
+  }, [isVideoOn, send, stopScreenShare]);
 
   // ── Leave / End ────────────────────────────────────────────────────────────
   const handleLeave = useCallback(async () => {
@@ -261,7 +362,7 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
       }
     }
     stopMedia();
-    router.push("/dashboard");
+    router.push(`/meeting/${meeting.meeting_code}/left`);
   }, [isLeaving, meeting.meeting_code, router, send, stopMedia]);
 
   const handleEnd = useCallback(async () => {
@@ -295,20 +396,21 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
         onEnd={handleEnd}
       />
 
+      {error && (
+        <MediaErrorBanner message={error} onRetry={() => void startMedia()} />
+      )}
+
       <div className="flex flex-1 overflow-hidden">
-        {error ? (
-          <PermissionError message={error} />
-        ) : (
-          <VideoGrid
-            localStream={localPreviewStream ?? localStream}
-            localName={displayName}
-            isMuted={isMuted}
-            isVideoOn={isVideoOn}
-            isScreenSharing={isScreenSharing}
-            remoteParticipants={remoteParticipants}
-            remoteStreams={remoteStreams}
-          />
-        )}
+        <VideoGrid
+          localStream={localPreviewStream ?? localStream}
+          localName={displayName}
+          isMuted={isMuted}
+          isVideoOn={isVideoOn}
+          isHost={isHost}
+          isScreenSharing={isScreenSharing}
+          remoteParticipants={remoteParticipants}
+          remoteStreams={remoteStreams}
+        />
 
         {isSidebarOpen && (
           <ParticipantsSidebar
@@ -320,6 +422,14 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
             onClose={() => setIsSidebarOpen(false)}
           />
         )}
+
+        {isChatOpen && (
+          <ChatSidebar
+            messages={messages}
+            onSend={(text) => send({ event: "chat-message", text })}
+            onClose={() => setIsChatOpen(false)}
+          />
+        )}
       </div>
 
       <ControlBar
@@ -327,12 +437,17 @@ export function MeetingRoom({ meeting }: MeetingRoomProps) {
         isVideoOn={isVideoOn}
         isHost={isHost}
         isScreenSharing={isScreenSharing}
+        unreadCount={unreadCount}
         onToggleAudio={handleToggleAudio}
         onToggleVideo={handleToggleVideo}
         onToggleScreenShare={
-          isScreenSharing ? stopScreenShare : startScreenShare
+          isScreenSharing ? handleStopScreenShare : startScreenShare
         }
         onToggleSidebar={() => setIsSidebarOpen((o) => !o)}
+        onToggleChat={() => {
+          setIsChatOpen((o) => !o);
+          setUnreadCount(0);
+        }}
         onMuteAll={isHost ? () => send({ event: "mute-all" }) : undefined}
         onLeave={handleLeave}
         onEnd={handleEnd}

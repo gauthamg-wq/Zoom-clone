@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Clock } from "lucide-react";
 import { ZoomButton } from "@/components/ui/zoom-button";
-import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { RecentMeeting } from "@/lib/types";
 
@@ -17,16 +16,11 @@ export function RecentMeetings({ meetings }: RecentMeetingsProps) {
   const router = useRouter();
   const [joining, setJoining] = useState<string | null>(null);
 
-  async function handleStart(code: string) {
+  function handleStart(code: string) {
     setJoining(code);
-    try {
-      const { participant } = await api.joinMeeting(code, DEFAULT_DISPLAY_NAME);
-      router.push(
-        `/meeting/${code}?name=${encodeURIComponent(DEFAULT_DISPLAY_NAME)}&participantId=${participant.id}`,
-      );
-    } catch {
-      setJoining(null);
-    }
+    router.push(
+      `/meeting/${code}?name=${encodeURIComponent(DEFAULT_DISPLAY_NAME)}`,
+    );
   }
 
   return (
@@ -65,14 +59,23 @@ export function RecentMeetings({ meetings }: RecentMeetingsProps) {
                   )}
                 </div>
               </div>
-              <div className="shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                {rm.meeting.status === "live" && (
+                  <span className="text-xs font-medium text-green-500 bg-green-500/10 border border-green-500/30 rounded-full px-2 py-0.5">
+                    Live
+                  </span>
+                )}
                 <ZoomButton
                   size="sm"
-                  variant="outline"
+                  variant={rm.meeting.status === "live" ? "default" : "outline"}
                   onClick={() => handleStart(rm.meeting.meeting_code)}
                   disabled={joining === rm.meeting.meeting_code}
                 >
-                  {joining === rm.meeting.meeting_code ? "Joining…" : "Start"}
+                  {joining === rm.meeting.meeting_code
+                    ? "Joining…"
+                    : rm.meeting.status === "live"
+                      ? "Rejoin"
+                      : "Start"}
                 </ZoomButton>
               </div>
             </div>

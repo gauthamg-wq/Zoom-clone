@@ -62,6 +62,17 @@ export interface RemoteParticipant {
   stream: MediaStream | null;
 }
 
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  clientId: string;
+  displayName: string;
+  text: string;
+  timestamp: string;
+  isOwn: boolean;
+}
+
 // ── WebSocket message types (client → server) ───────────────────────────────
 
 export type WSMessage =
@@ -81,7 +92,8 @@ export type WSMessage =
   | { event: "mute-participant"; targetClientId: string }
   | { event: "mute-all" }
   | { event: "remove-participant"; targetClientId: string }
-  | { event: "end-meeting" };
+  | { event: "end-meeting" }
+  | { event: "chat-message"; text: string };
 
 // ── WebSocket event types (server → client) ──────────────────────────────────
 
@@ -104,4 +116,11 @@ export type WSEvent =
   | { event: "host-muted-you" }
   | { event: "removed-from-meeting" }
   | { event: "meeting-ended" }
-  | { event: "all-muted"; by: string };
+  | { event: "all-muted"; by: string }
+  | {
+      event: "chat-message";
+      clientId: string;
+      displayName: string;
+      text: string;
+      timestamp: string;
+    };

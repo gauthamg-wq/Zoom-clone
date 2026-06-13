@@ -19,9 +19,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getUpcomingMeetings: () => apiFetch<Meeting[]>("/meetings/upcoming"),
+  // cache: 'no-store' prevents the browser from serving stale meeting status
+  // (e.g. showing "live" after a meeting has ended).
+  getUpcomingMeetings: () =>
+    apiFetch<Meeting[]>("/meetings/upcoming", { cache: "no-store" }),
 
-  getRecentMeetings: () => apiFetch<RecentMeeting[]>("/meetings/recent"),
+  getRecentMeetings: () =>
+    apiFetch<RecentMeeting[]>("/meetings/recent", { cache: "no-store" }),
 
   getMeeting: (code: string) => apiFetch<Meeting>(`/meetings/${code}`),
 

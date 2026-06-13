@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      date-fns:
+        specifier: ^4.4.0
+        version: 4.4.0
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@19.2.7)
@@ -17,6 +20,9 @@ importers:
       shadcn:
         specifier: ^4.11.0
         version: 4.11.0(typescript@5.7.3)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0

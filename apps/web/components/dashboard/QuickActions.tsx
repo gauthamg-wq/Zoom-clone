@@ -42,7 +42,7 @@ export function QuickActions() {
     <div className="flex flex-col items-center gap-8 py-4">
       {/* Time / date header */}
       <div className="text-center select-none">
-        <div className="text-5xl font-light tracking-tight text-foreground tabular-nums">
+        <div className="text-5xl font-bold tracking-tight text-foreground tabular-nums">
           {timeStr}
         </div>
         <div className="text-sm text-muted-foreground mt-1">{dayStr}</div>

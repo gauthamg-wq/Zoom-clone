@@ -37,7 +37,7 @@ export function RecentMeetings({ meetings }: RecentMeetingsProps) {
   }
 
   return (
-    <section>
+    <section className="max-w-2xl mx-auto">
       <h2 className="text-lg font-semibold text-foreground mb-3">
         Previous Meetings
       </h2>

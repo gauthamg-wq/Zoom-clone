@@ -30,7 +30,7 @@ export function DashboardSidebar() {
           const itemClass = cn(
             "flex flex-col items-center justify-center gap-[5px] w-full py-2.5 rounded-lg transition-colors",
             isActive
-              ? "text-primary bg-primary/10"
+              ? "text-primary bg-white"
               : href !== null
                 ? "text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                 : "text-muted-foreground/50 cursor-default",
@@ -66,7 +66,6 @@ export function DashboardSidebar() {
       <div className="px-1.5 w-full pb-1">
         <button className="flex flex-col items-center justify-center gap-[5px] w-full py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Settings className="w-[18px] h-[18px]" />
-          <span className="text-[10px] font-medium leading-none">Settings</span>
         </button>
       </div>
     </aside>

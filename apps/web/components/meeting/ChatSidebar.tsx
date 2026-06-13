@@ -16,12 +16,10 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to newest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input when sidebar opens
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -41,13 +39,13 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
   }
 
   return (
-    <aside className="fixed inset-x-0 bottom-0 h-80 sm:relative sm:inset-auto sm:bottom-auto sm:h-auto sm:w-72 lg:w-80 bg-gray-900 border-t sm:border-t-0 sm:border-l border-gray-800 flex flex-col shrink-0 z-40">
+    <aside className="fixed inset-x-0 bottom-0 h-80 sm:relative sm:inset-auto sm:bottom-auto sm:h-auto sm:w-72 lg:w-80 bg-[#1c1c1c] border-t sm:border-t-0 sm:border-l border-[#2a2a2a] flex flex-col shrink-0 z-40">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
-        <h2 className="text-sm font-semibold text-white">Chat</h2>
+      <div className="flex items-center justify-between px-4 h-12 border-b border-[#2a2a2a] shrink-0">
+        <h2 className="text-sm font-semibold text-white">In-meeting chat</h2>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-white transition rounded p-1"
+          className="p-1.5 rounded-lg text-[#888] hover:text-white hover:bg-white/10 transition"
           title="Close chat"
         >
           <X className="w-4 h-4" />
@@ -55,26 +53,31 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
       </div>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
         {messages.length === 0 ? (
-          <p className="text-center text-gray-500 text-sm pt-8">
-            No messages yet. Say hello!
-          </p>
+          <div className="flex flex-col items-center justify-center h-full pt-12 gap-3 text-center px-4">
+            <div className="w-12 h-12 rounded-full bg-[#2d2d2d] flex items-center justify-center">
+              <Send className="w-5 h-5 text-[#555]" />
+            </div>
+            <p className="text-[#666] text-sm">
+              Messages can only be seen by people in the call.
+            </p>
+          </div>
         ) : (
           messages.map((msg) => (
             <div
               key={msg.id}
               className={cn(
-                "flex flex-col gap-0.5 max-w-[85%]",
+                "flex flex-col gap-0.5 max-w-[88%]",
                 msg.isOwn ? "ml-auto items-end" : "items-start",
               )}
             >
               {!msg.isOwn && (
-                <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-5 rounded-full bg-primary/70 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="w-5 h-5 rounded-full bg-linear-to-br from-[#0b5cff] to-[#0d4bcf] flex items-center justify-center text-white text-[10px] font-semibold shrink-0">
                     {msg.displayName.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-[#888] font-medium">
                     {msg.displayName}
                   </span>
                 </div>
@@ -83,13 +86,13 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
                 className={cn(
                   "px-3 py-2 rounded-2xl text-sm wrap-break-word",
                   msg.isOwn
-                    ? "bg-primary text-white rounded-tr-sm"
-                    : "bg-gray-800 text-gray-100 rounded-tl-sm",
+                    ? "bg-[#0b5cff] text-white rounded-tr-sm"
+                    : "bg-[#2d2d2d] text-gray-100 rounded-tl-sm",
                 )}
               >
                 {msg.text}
               </div>
-              <span className="text-xs text-gray-600 px-1">
+              <span className="text-[11px] text-[#555] px-1">
                 {new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -102,8 +105,8 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
       </div>
 
       {/* Input row */}
-      <div className="px-3 py-3 border-t border-gray-800 shrink-0">
-        <div className="flex items-center gap-2 bg-gray-800 rounded-xl px-3 py-2">
+      <div className="px-3 py-3 border-t border-[#2a2a2a] shrink-0">
+        <div className="flex items-center gap-2 bg-[#2d2d2d] border border-[#3a3a3a] rounded-xl px-3 py-2 focus-within:border-[#555] transition-colors">
           <input
             ref={inputRef}
             type="text"
@@ -111,20 +114,17 @@ export function ChatSidebar({ messages, onSend, onClose }: ChatSidebarProps) {
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Message everyone…"
-            className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-white placeholder-[#555] focus:outline-none"
           />
           <button
             onClick={handleSend}
             disabled={!draft.trim()}
-            title="Send message"
-            className="text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0"
+            title="Send (Enter)"
+            className="text-[#0b5cff] hover:text-[#2d7aff] disabled:opacity-30 disabled:cursor-not-allowed transition shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-xs text-gray-600 mt-1.5 text-center">
-          Enter to send · Shift+Enter for new line
-        </p>
       </div>
     </aside>
   );

@@ -190,23 +190,20 @@ def join_meeting(
     if meeting.status == "scheduled":
         meeting.status = "live"
 
-    existing = (
+    # Role assignment: the FIRST person to join an active meeting becomes host.
+    # We intentionally skip the "existing participant" lookup here because the
+    # app uses a shared DEFAULT_USER_ID for all API calls (no real auth), so
+    # querying by user_id would incorrectly return a previous user's record and
+    # give everyone the host role.
+    active_count = (
         db.query(models.Participant)
         .filter(
             models.Participant.meeting_id == meeting.id,
-            models.Participant.user_id == user_id,
             models.Participant.left_at.is_(None),
         )
-        .first()
+        .count()
     )
-    if existing:
-        existing.display_name = display_name
-        db.commit()
-        db.refresh(meeting)
-        db.refresh(existing)
-        return meeting, existing
-
-    role = "host" if meeting.host_user_id == user_id else "participant"
+    role = "host" if active_count == 0 else "participant"
     participant = models.Participant(
         meeting_id=meeting.id,
         display_name=display_name,

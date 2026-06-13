@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { AlertTriangle, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZoomButton } from "@/components/ui/zoom-button";
@@ -19,6 +19,8 @@ interface PreJoinLobbyProps {
     stream: MediaStream | null,
     participantId: number,
     role: "host" | "participant",
+    isMuted: boolean,
+    isVideoOn: boolean,
   ) => void;
 }
 
@@ -38,6 +40,35 @@ export function PreJoinLobby({
   const [mediaReady, setMediaReady] = useState(false);
   const [mediaWarning, setMediaWarning] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const broadcastRef = useRef<BroadcastChannel | null>(null);
+
+  // ── Cross-tab duplicate-session detection ─────────────────────────────────
+  // Sends a "ping" on mount. If a MeetingRoom in another tab responds "active",
+  // we surface a warning dialog before the user can join — matching Zoom's
+  // "You are already in this meeting in another window" UX.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(`meeting-${meeting.meeting_code}`);
+    broadcastRef.current = channel;
+
+    channel.onmessage = (e: MessageEvent<{ type: string }>) => {
+      if (e.data?.type === "active") {
+        setShowDuplicateWarning(true);
+      }
+    };
+
+    // Brief delay so any MeetingRoom listeners in other tabs are ready
+    const timer = setTimeout(() => {
+      channel.postMessage({ type: "ping" });
+    }, 120);
+
+    return () => {
+      clearTimeout(timer);
+      channel.close();
+      broadcastRef.current = null;
+    };
+  }, [meeting.meeting_code]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +155,14 @@ export function PreJoinLobby({
     setIsVideoOn(newVideoOn);
   }
 
+  // Called when the user clicks "Join here" in the duplicate-session dialog.
+  // Sends a takeover signal to the other tab first, then joins normally.
+  function handleJoinHere() {
+    broadcastRef.current?.postMessage({ type: "takeover" });
+    setShowDuplicateWarning(false);
+    void handleJoin();
+  }
+
   async function handleJoin() {
     if (joining) return;
     setJoining(true);
@@ -141,6 +180,8 @@ export function PreJoinLobby({
         stream,
         participant.id,
         participant.role as "host" | "participant",
+        isMuted,
+        isVideoOn,
       );
     } catch (err: unknown) {
       toast.error(
@@ -153,7 +194,40 @@ export function PreJoinLobby({
   const displayInitial = (name.trim() || defaultName).charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <div className="relative min-h-screen bg-gray-950 flex items-center justify-center p-4">
+      {/* Duplicate-session warning overlay */}
+      {showDuplicateWarning && (
+        <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-yellow-500/15 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              </div>
+              <div>
+                <h2 className="text-white font-semibold text-base leading-snug">
+                  Already in this meeting
+                </h2>
+                <p className="text-gray-400 text-sm mt-1 leading-relaxed">
+                  You&apos;re already in this meeting in another browser tab.
+                  Joining here will disconnect that session.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <ZoomButton
+                variant="outline"
+                className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                onClick={() => router.push("/dashboard")}
+              >
+                Cancel
+              </ZoomButton>
+              <ZoomButton className="flex-1" onClick={handleJoinHere}>
+                Join here
+              </ZoomButton>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -285,7 +359,7 @@ export function PreJoinLobby({
               </ZoomButton>
               <ZoomButton
                 variant="ghost"
-                className="w-full text-gray-400 hover:text-white"
+                className="w-full text-gray-400 hover:text-gray-100 hover:bg-gray-800"
                 onClick={() => router.push("/dashboard")}
               >
                 Cancel

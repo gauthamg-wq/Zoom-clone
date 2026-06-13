@@ -77,7 +77,13 @@ export interface ChatMessage {
 // ── WebSocket message types (client → server) ───────────────────────────────
 
 export type WSMessage =
-  | { event: "join-room"; displayName: string; role: string }
+  | {
+      event: "join-room";
+      displayName: string;
+      role: string;
+      isMuted?: boolean;
+      isVideoOn?: boolean;
+    }
   | { event: "leave-room" }
   | { event: "offer"; targetClientId: string; sdp: RTCSessionDescriptionInit }
   | { event: "answer"; targetClientId: string; sdp: RTCSessionDescriptionInit }

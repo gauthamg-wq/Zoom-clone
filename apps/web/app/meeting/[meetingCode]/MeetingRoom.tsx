@@ -30,6 +30,10 @@ interface MeetingRoomProps {
   participantId?: number | null;
   /** Role determined by the lobby API response. */
   initialRole?: "host" | "participant";
+  /** Mute state chosen in the lobby — forwarded to startMedia() in case Strict Mode kills the stream. */
+  initialIsMuted?: boolean;
+  /** Video state chosen in the lobby — forwarded to startMedia() in case Strict Mode kills the stream. */
+  initialIsVideoOn?: boolean;
 }
 
 function MediaErrorBanner({
@@ -61,6 +65,8 @@ export function MeetingRoom({
   existingStream,
   participantId: participantIdProp,
   initialRole,
+  initialIsMuted,
+  initialIsVideoOn,
 }: MeetingRoomProps) {
   const router = useRouter();
 
@@ -122,6 +128,7 @@ export function MeetingRoom({
     stopScreenShare,
     isScreenSharing,
     localPreviewStream,
+    replaceVideoTrack,
   } = useWebRTC({
     localStream,
     onRemoteStream: (id, stream) => {
@@ -293,13 +300,47 @@ export function MeetingRoom({
     wsEventHandlerRef.current = handleWsEvent;
   });
 
+  // ── Cross-tab duplicate-session handling (BroadcastChannel) ──────────────
+  // When a second browser tab opens the same meeting:
+  //   1. The lobby tab sends "ping" → this room responds "active"
+  //   2. If the user chooses "Join here" in the lobby, it sends "takeover"
+  //      → this room gracefully leaves and redirects to the dashboard
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(`meeting-${meeting.meeting_code}`);
+
+    channel.onmessage = (e: MessageEvent<{ type: string }>) => {
+      if (e.data?.type === "ping") {
+        channel.postMessage({ type: "active" });
+      } else if (e.data?.type === "takeover") {
+        toast.info("You joined this meeting in another window.");
+        send({ event: "leave-room" });
+        const pid = participantIdRef.current;
+        if (pid) {
+          void api.leaveParticipant(meeting.meeting_code, pid).catch(() => {});
+        }
+        stopMedia();
+        router.push("/dashboard");
+      }
+    };
+
+    return () => channel.close();
+  }, [meeting.meeting_code, router, send, stopMedia]);
+
   // ── Announce presence when WS connects ────────────────────────────────────
+  // Include the current media state so the backend initialises the participant's
+  // ParticipantState correctly.  Without this the first participant-joined
+  // broadcast always advertises is_muted=false even when the user joined muted
+  // from the lobby, causing remotes to show the wrong badge until the separate
+  // toggle-audio sync fires.
   useEffect(() => {
     if (isConnected) {
       send({
         event: "join-room",
         displayName,
         role: isHost ? "host" : "participant",
+        isMuted,
+        isVideoOn,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,7 +376,13 @@ export function MeetingRoom({
       if (streamIsLive) {
         initWithStream(existingStream!);
       } else {
-        await startMedia();
+        // Pass the lobby preferences so startMedia() can restore the user's
+        // chosen mute/video state even though it is creating a fresh stream
+        // (lobby stream died in the Strict Mode cleanup).
+        await startMedia({
+          isMuted: initialIsMuted,
+          isVideoOn: initialIsVideoOn,
+        });
       }
     }
     void init();
@@ -369,13 +416,23 @@ export function MeetingRoom({
   }, [isMuted, send, toggleAudio]);
 
   const handleToggleVideo = useCallback(() => {
-    toggleVideo();
-    // While screen sharing the remote video track is the screen, not the camera.
-    // Sending toggle-video would wrongly hide the screen on remote tiles.
-    if (!isScreenSharing) {
-      send({ event: "toggle-video", isVideoOn: !isVideoOn });
-    }
-  }, [isVideoOn, isScreenSharing, send, toggleVideo]);
+    // toggleVideo() is async: it stops the camera track (LED off) or acquires a
+    // new one. The result must then be synced to every RTCRtpSender so remote
+    // peers see the correct video state without full SDP renegotiation.
+    void (async () => {
+      const newTrack = await toggleVideo();
+      await replaceVideoTrack(newTrack);
+      // While screen sharing the remote video track is the screen, not the
+      // camera.  Sending toggle-video would wrongly hide the screen on remote tiles.
+      if (!isScreenSharing) {
+        // isVideoOn is the PREVIOUS state captured in the closure.
+        // If was ON and we turned off → newTrack is null → new state = false.
+        // If was OFF and we turned on  → newTrack is non-null → new state = true.
+        const newVideoOn = isVideoOn ? false : newTrack !== null;
+        send({ event: "toggle-video", isVideoOn: newVideoOn });
+      }
+    })();
+  }, [isVideoOn, isScreenSharing, send, toggleVideo, replaceVideoTrack]);
 
   // When screen sharing stops, re-broadcast the actual camera state so remote
   // tiles correctly reflect whether the camera is on or off.
@@ -425,6 +482,7 @@ export function MeetingRoom({
   return (
     <div className="meeting-root">
       <MeetingHeader
+        title={meeting.title}
         meetingCode={meeting.meeting_code}
         inviteLink={meeting.invite_link}
         isConnected={isConnected}

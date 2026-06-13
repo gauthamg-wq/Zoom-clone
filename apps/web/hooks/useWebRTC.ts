@@ -37,6 +37,7 @@ interface UseWebRTCReturn {
   stopScreenShare: () => void;
   isScreenSharing: boolean;
   localPreviewStream: MediaStream | null;
+  replaceVideoTrack: (track: MediaStreamTrack | null) => Promise<void>;
 }
 
 export function useWebRTC({
@@ -52,6 +53,15 @@ export function useWebRTC({
   );
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
+  // WeakMap tracks the video RTCRtpSender per RTCPeerConnection.
+  // We use a WeakMap instead of looking up sender.track.kind so we can still
+  // find the right sender even after replaceTrack(null) sets sender.track to
+  // null (a valid operation used when the camera is stopped to release the
+  // hardware and turn off the indicator LED).
+  const videoSenders = useRef<WeakMap<RTCPeerConnection, RTCRtpSender>>(
+    new WeakMap(),
+  );
+
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [localPreviewStream, setLocalPreviewStream] =
     useState<MediaStream | null>(null);
@@ -59,7 +69,7 @@ export function useWebRTC({
   const sendRef = useRef(send);
   const localStreamRef = useRef(localStream);
 
-  // Keep refs current for async callbacks (WS, ICE) without updating during render.
+  // Keep refs current for async callbacks (WS, ICE) without re-rendering.
   useEffect(() => {
     sendRef.current = send;
     localStreamRef.current = localStream;
@@ -118,16 +128,22 @@ export function useWebRTC({
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    // Add local camera/mic tracks. localStreamRef.current is updated synchronously
-    // on every render so this always reflects the latest value.
+    // Add local camera/mic tracks. Keep a reference to the video sender so we
+    // can update it later via replaceVideoTrack() without relying on
+    // sender.track.kind (which becomes null after replaceTrack(null)).
     const stream = localStreamRef.current;
     if (stream) {
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => {
+        const sender = pc.addTrack(track, stream);
+        if (track.kind === "video") {
+          videoSenders.current.set(pc, sender);
+        }
+      });
     }
 
-    // If screen sharing is active, also replace the video track in the new PC
+    // If screen sharing is already active, replace camera track with screen.
     if (screenTrackRef.current) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+      const sender = videoSenders.current.get(pc);
       sender?.replaceTrack(screenTrackRef.current);
     }
 
@@ -188,9 +204,12 @@ export function useWebRTC({
       const senders = pc.getSenders();
 
       if (senders.length === 0) {
-        localStream
-          .getTracks()
-          .forEach((track) => pc.addTrack(track, localStream));
+        localStream.getTracks().forEach((track) => {
+          const sender = pc.addTrack(track, localStream);
+          if (track.kind === "video") {
+            videoSenders.current.set(pc, sender);
+          }
+        });
         void pc
           .createOffer()
           .then((offer) => pc.setLocalDescription(offer).then(() => offer))
@@ -215,7 +234,12 @@ export function useWebRTC({
         const replacement = localStream
           .getTracks()
           .find((t) => t.kind === sender.track!.kind);
-        if (replacement) void sender.replaceTrack(replacement);
+        if (replacement) {
+          void sender.replaceTrack(replacement);
+          if (replacement.kind === "video") {
+            videoSenders.current.set(pc, sender);
+          }
+        }
       }
     }
   }, [localStream]);
@@ -265,10 +289,13 @@ export function useWebRTC({
   // ── Screen sharing ────────────────────────────────────────────────────────
 
   const stopScreenShare = useCallback(() => {
+    // Restore camera track (or null if video is currently off).
+    // replaceTrack(null) is valid per spec and clears the sender without
+    // requiring SDP renegotiation.
     const cameraTrack = localStreamRef.current?.getVideoTracks()[0] ?? null;
     for (const pc of peerConnections.current.values()) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-      if (cameraTrack) sender?.replaceTrack(cameraTrack);
+      const sender = videoSenders.current.get(pc);
+      if (sender) void sender.replaceTrack(cameraTrack);
     }
     screenTrackRef.current?.stop();
     screenTrackRef.current = null;
@@ -286,7 +313,7 @@ export function useWebRTC({
       screenTrackRef.current = screenTrack;
 
       for (const pc of peerConnections.current.values()) {
-        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        const sender = videoSenders.current.get(pc);
         await sender?.replaceTrack(screenTrack);
       }
 
@@ -302,6 +329,27 @@ export function useWebRTC({
     }
   }, [stopScreenShare]);
 
+  // ── Video track replacement ───────────────────────────────────────────────
+  // Called by MeetingRoom.handleToggleVideo after toggleVideo() stops or
+  // restarts the camera track. Updates all active RTCRtpSenders so remote
+  // peers see the correct video state without SDP renegotiation.
+  // Passing null clears the sender (camera off); passing a live track resumes.
+  const replaceVideoTrack = useCallback(
+    async (track: MediaStreamTrack | null): Promise<void> => {
+      for (const pc of peerConnections.current.values()) {
+        const sender = videoSenders.current.get(pc);
+        if (sender) {
+          try {
+            await sender.replaceTrack(track);
+          } catch {
+            // Sender may be closed (e.g. peer disconnected) — safe to ignore
+          }
+        }
+      }
+    },
+    [],
+  );
+
   return {
     handleSignal,
     handleExistingParticipants,
@@ -310,5 +358,6 @@ export function useWebRTC({
     stopScreenShare,
     isScreenSharing,
     localPreviewStream,
+    replaceVideoTrack,
   };
 }

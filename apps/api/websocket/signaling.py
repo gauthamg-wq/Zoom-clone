@@ -41,6 +41,10 @@ async def signaling_endpoint(
                         client_id=client_id,
                         display_name=data.get("displayName", "Participant"),
                         role=data.get("role", "participant"),
+                        # Honour the initial media state the client reports so the
+                        # participant-joined broadcast reflects real lobby state.
+                        is_muted=bool(data.get("isMuted", False)),
+                        is_video_on=bool(data.get("isVideoOn", True)),
                     )
                     await manager.connect(meeting_code, client_id, websocket, participant)
                     joined = True

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import { Lock } from "lucide-react";
 import { CopyInviteLink } from "@/components/meeting/CopyInviteLink";
 import { formatMeetingCode } from "@/lib/meeting-code";
 
 interface MeetingHeaderProps {
+  title: string;
   meetingCode: string;
   inviteLink: string | null;
   isConnected: boolean;
@@ -20,6 +21,7 @@ function formatElapsed(seconds: number): string {
 }
 
 export function MeetingHeader({
+  title,
   meetingCode,
   inviteLink,
   isConnected,
@@ -32,30 +34,48 @@ export function MeetingHeader({
   }, []);
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-3 sm:px-5 h-12 sm:h-14 flex items-center justify-between shrink-0 gap-2">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="flex items-center gap-1.5 text-gray-400 shrink-0">
-          <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
-          <span className="font-mono text-xs sm:text-sm text-gray-300">
-            {formatMeetingCode(meetingCode)}
-          </span>
+    <header className="bg-[#1c1c1c] border-b border-[#2a2a2a] px-3 sm:px-5 h-12 sm:h-14 flex items-center justify-between shrink-0 gap-3">
+      {/* ── Left: meeting title + security indicator ─────────────────────── */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        {/* Lock — indicates end-to-end encrypted / secured */}
+        <div
+          className="shrink-0 flex items-center gap-1 text-[#5a9e5c]"
+          title="Meeting is secured"
+        >
+          <Lock className="w-3.5 h-3.5" />
         </div>
+
+        <div className="min-w-0">
+          {/* Meeting title */}
+          <p className="text-white text-sm font-semibold leading-tight truncate max-w-[180px] sm:max-w-xs">
+            {title}
+          </p>
+          {/* Meeting code */}
+          <p className="text-[#888] text-xs font-mono leading-tight">
+            {formatMeetingCode(meetingCode)}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Right: invite button + connection dot + timer ────────────────── */}
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <CopyInviteLink
           meeting={{ meeting_code: meetingCode, invite_link: inviteLink }}
           variant="header"
         />
-      </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <span
-          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-            isConnected ? "bg-green-400" : "bg-yellow-500 animate-pulse"
-          }`}
-          title={isConnected ? "Connected" : "Connecting…"}
-        />
-        <span className="text-gray-400 text-xs sm:text-sm font-mono tabular-nums">
-          {formatElapsed(elapsed)}
-        </span>
+        {/* Connection indicator */}
+        <div className="flex items-center gap-1.5 pl-1 border-l border-[#333]">
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              isConnected ? "bg-green-400" : "bg-yellow-500 animate-pulse"
+            }`}
+            title={isConnected ? "Connected" : "Connecting…"}
+          />
+          <span className="text-[#888] text-xs sm:text-sm font-mono tabular-nums">
+            {formatElapsed(elapsed)}
+          </span>
+        </div>
       </div>
     </header>
   );

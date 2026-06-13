@@ -29,32 +29,62 @@ interface ControlBarProps {
   onEnd: () => void;
 }
 
-function ControlButton({
+/**
+ * Zoom-style control button: icon on top, label below.
+ * isOff = feature disabled (mic muted, video off, screen sharing active)
+ *   → icon and label rendered in red to signal "active warning state"
+ */
+function ControlBtn({
   onClick,
-  active = true,
+  icon,
+  label,
+  isOff = false,
   title,
   className,
-  children,
+  children: _,
+  badge,
 }: {
   onClick: () => void;
-  active?: boolean;
-  title: string;
+  icon: React.ReactNode;
+  label: string;
+  isOff?: boolean;
+  title?: string;
   className?: string;
-  children: React.ReactNode;
+  children?: never;
+  badge?: number;
 }) {
   return (
     <button
       onClick={onClick}
-      title={title}
+      title={title ?? label}
       className={cn(
-        "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer",
-        active
-          ? "bg-gray-700 hover:bg-gray-600 text-white"
-          : "bg-red-600 hover:bg-red-500 text-white",
+        "relative flex flex-col items-center justify-center gap-[5px]",
+        "min-w-[52px] sm:min-w-[60px] px-1 sm:px-2 py-2 rounded-xl",
+        "hover:bg-white/9 transition-colors cursor-pointer shrink-0 select-none",
         className,
       )}
     >
-      {children}
+      <span
+        className={cn(
+          "flex items-center justify-center",
+          isOff ? "text-red-500" : "text-white",
+        )}
+      >
+        {icon}
+      </span>
+      <span
+        className={cn(
+          "text-[11px] font-medium leading-none text-center whitespace-nowrap",
+          isOff ? "text-red-400" : "text-[#c0c0c0]",
+        )}
+      >
+        {label}
+      </span>
+      {badge !== undefined && badge > 0 && (
+        <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none pointer-events-none">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -74,98 +104,100 @@ export function ControlBar({
   onLeave,
   onEnd,
 }: ControlBarProps) {
+  const iconSize = "w-[22px] h-[22px]";
+
   return (
     /*
-     * Layout: justify-between keeps media controls on the left and Leave/End
-     * anchored to the right WITHOUT overflow scrolling.  Scrollable containers
-     * on touch screens delay or swallow tap events while the browser decides
-     * whether the gesture is a scroll — removing overflow-x-auto fixes that.
-     *
-     * Button counts on mobile: Mic + Video + Participants + Chat = 4 × 36px
-     * + 3 × 6px gaps = 162px.  The right section (Leave / End) needs ~90px.
-     * Total ≈ 260px which easily fits a 375px phone screen.
+     * Layout: flex with two flex-1 spacers flanking the centered controls,
+     * and the Leave/End section anchored at the right inside its own spacer.
+     * This keeps the icon strip perfectly centred on any screen width without
+     * using `position: absolute`, which would cause clipping on small screens.
      */
-    <footer className="bg-gray-900 border-t border-gray-800 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 shrink-0">
-      {/* ── Left: media + utility controls ─────────────────────────────── */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <ControlButton
+    <footer className="bg-[#1c1c1c] border-t border-[#2a2a2a] h-[72px] flex items-center px-3 sm:px-5 shrink-0 gap-2">
+      {/* ── Left flex-1 spacer: keeps center strip centred ─────────────── */}
+      <div className="flex-1 min-w-0" />
+
+      {/* ── Center: primary controls ─────────────────────────────────────── */}
+      <div className="flex items-center gap-0 sm:gap-0.5">
+        <ControlBtn
           onClick={onToggleAudio}
-          active={!isMuted}
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? (
-            <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />
-          ) : (
-            <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
-          )}
-        </ControlButton>
+          icon={
+            isMuted ? (
+              <MicOff className={iconSize} />
+            ) : (
+              <Mic className={iconSize} />
+            )
+          }
+          label={isMuted ? "Unmute" : "Mute"}
+          isOff={isMuted}
+        />
 
-        <ControlButton
+        <ControlBtn
           onClick={onToggleVideo}
-          active={isVideoOn}
-          title={isVideoOn ? "Stop Video" : "Start Video"}
-        >
-          {isVideoOn ? (
-            <Video className="w-4 h-4 sm:w-5 sm:h-5" />
-          ) : (
-            <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />
-          )}
-        </ControlButton>
+          icon={
+            isVideoOn ? (
+              <Video className={iconSize} />
+            ) : (
+              <VideoOff className={iconSize} />
+            )
+          }
+          label={isVideoOn ? "Stop Video" : "Start Video"}
+          isOff={!isVideoOn}
+        />
 
-        {/* getDisplayMedia is not supported in mobile browsers — hide on xs */}
-        <ControlButton
+        {/* Screen share: hidden on mobile browsers that don't support getDisplayMedia */}
+        <ControlBtn
           onClick={onToggleScreenShare}
-          active={!isScreenSharing}
-          title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+          icon={
+            isScreenSharing ? (
+              <MonitorX className={iconSize} />
+            ) : (
+              <Monitor className={iconSize} />
+            )
+          }
+          label={isScreenSharing ? "Stop Share" : "Share Screen"}
+          isOff={isScreenSharing}
           className="hidden sm:flex"
-        >
-          {isScreenSharing ? (
-            <MonitorX className="w-4 h-4 sm:w-5 sm:h-5" />
-          ) : (
-            <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
-          )}
-        </ControlButton>
+        />
 
-        <ControlButton onClick={onToggleSidebar} title="Participants">
-          <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-        </ControlButton>
+        <ControlBtn
+          onClick={onToggleSidebar}
+          icon={<Users className={iconSize} />}
+          label="Participants"
+        />
 
-        <div className="relative">
-          <ControlButton onClick={onToggleChat} title="Chat">
-            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-          </ControlButton>
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none pointer-events-none">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </div>
+        <ControlBtn
+          onClick={onToggleChat}
+          icon={<MessageSquare className={iconSize} />}
+          label="Chat"
+          badge={unreadCount}
+        />
 
         {isHost && onMuteAll && (
-          <ControlButton
+          <ControlBtn
             onClick={onMuteAll}
-            title="Mute All Participants"
+            icon={<UserX className={iconSize} />}
+            label="Mute All"
             className="hidden sm:flex"
-          >
-            <UserX className="w-4 h-4 sm:w-5 sm:h-5" />
-          </ControlButton>
+          />
         )}
       </div>
 
-      {/* ── Right: Leave / End — always visible ─────────────────────────── */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      {/* ── Right flex-1 spacer: Leave/End anchored to the right ────────── */}
+      <div className="flex-1 min-w-0 flex items-center justify-end gap-2 shrink-0">
         {isHost ? (
           <>
-            {/* "Leave" as a subtle text button saves horizontal space for the End button */}
+            {/* Ghost "Leave" so the host can hand off and step out */}
             <button
               onClick={onLeave}
-              className="cursor-pointer text-red-400 hover:text-red-300 transition-colors text-xs sm:text-sm font-medium px-1.5 sm:px-2 py-1 rounded"
+              className="cursor-pointer text-white text-sm font-medium px-3 py-1.5 rounded-lg border border-[#444] hover:bg-white/10 transition-colors whitespace-nowrap"
             >
               Leave
             </button>
+            {/* Prominent red "End for all" */}
             <button
               onClick={onEnd}
-              className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white transition-colors text-xs sm:text-sm font-semibold rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 leading-none"
+              className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors whitespace-nowrap"
             >
               End
             </button>
@@ -173,7 +205,7 @@ export function ControlBar({
         ) : (
           <button
             onClick={onLeave}
-            className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white transition-colors text-xs sm:text-sm font-semibold rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 leading-none"
+            className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-colors whitespace-nowrap"
           >
             Leave
           </button>

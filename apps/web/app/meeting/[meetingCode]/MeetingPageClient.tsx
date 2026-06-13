@@ -19,6 +19,8 @@ function MeetingPageClientInner({ meeting }: MeetingPageClientProps) {
   const [showLobby, setShowLobby] = useState(true);
   const [confirmedName, setConfirmedName] = useState(nameFromParams);
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
+  const [lobbyIsMuted, setLobbyIsMuted] = useState(false);
+  const [lobbyIsVideoOn, setLobbyIsVideoOn] = useState(true);
   const [participantId, setParticipantId] = useState<number | null>(null);
   const [myRole, setMyRole] = useState<"host" | "participant">("participant");
 
@@ -31,9 +33,11 @@ function MeetingPageClientInner({ meeting }: MeetingPageClientProps) {
       <PreJoinLobby
         meeting={meeting}
         defaultName={confirmedName}
-        onJoin={(name, stream, pid, role) => {
+        onJoin={(name, stream, pid, role, isMuted, isVideoOn) => {
           setConfirmedName(name);
           setLobbyStream(stream);
+          setLobbyIsMuted(isMuted);
+          setLobbyIsVideoOn(isVideoOn);
           setParticipantId(pid);
           setMyRole(role);
           setShowLobby(false);
@@ -49,6 +53,8 @@ function MeetingPageClientInner({ meeting }: MeetingPageClientProps) {
       existingStream={lobbyStream}
       participantId={participantId}
       initialRole={myRole}
+      initialIsMuted={lobbyIsMuted}
+      initialIsVideoOn={lobbyIsVideoOn}
     />
   );
 }

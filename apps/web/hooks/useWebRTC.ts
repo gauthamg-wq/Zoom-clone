@@ -56,13 +56,14 @@ export function useWebRTC({
   const [localPreviewStream, setLocalPreviewStream] =
     useState<MediaStream | null>(null);
 
-  // Update refs synchronously on every render so callbacks always see the latest
-  // values regardless of when they're called from macrotask-queue events (WS, ICE).
-  // Refs never cause re-renders so this is safe.
   const sendRef = useRef(send);
   const localStreamRef = useRef(localStream);
-  sendRef.current = send;
-  localStreamRef.current = localStream;
+
+  // Keep refs current for async callbacks (WS, ICE) without updating during render.
+  useEffect(() => {
+    sendRef.current = send;
+    localStreamRef.current = localStream;
+  });
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

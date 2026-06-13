@@ -90,8 +90,8 @@ export default function DashboardPage() {
       <DashboardNavbar />
       <div className="flex flex-1 overflow-hidden">
         <DashboardSidebar />
-        <main className="flex-1 flex items-center justify-center bg-background p-4 sm:p-6 overflow-y-auto">
-          <div className="w-full max-w-4xl h-[600px] bg-white rounded-2xl p-6 sm:p-8 space-y-8 overflow-y-auto animate-fade-in">
+        <main className="flex-1 bg-background p-4 sm:p-6 overflow-hidden">
+          <div className="w-full h-full bg-white rounded-2xl p-6 sm:p-8 space-y-8 overflow-y-auto animate-fade-in">
             <Suspense>
               <MeetingBanner />
             </Suspense>

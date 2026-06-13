@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Video, Plus, Calendar } from "lucide-react";
+import { toast } from "sonner";
 import { ZoomButton } from "@/components/ui/zoom-button";
 import { ZoomCard, ZoomCardContent } from "@/components/ui/zoom-card";
 import { api } from "@/lib/api";
@@ -16,7 +17,10 @@ export function QuickActions() {
     try {
       const meeting = await api.createInstantMeeting();
       router.push(`/meeting/${meeting.meeting_code}`);
-    } catch {
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to start meeting",
+      );
       setStarting(false);
     }
   }

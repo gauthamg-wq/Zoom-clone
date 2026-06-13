@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PreJoinLobby } from "@/components/meeting/PreJoinLobby";
+import { MeetingEnded } from "@/components/meeting/MeetingEnded";
 import { MeetingRoom } from "./MeetingRoom";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { Meeting } from "@/lib/types";
@@ -20,6 +21,10 @@ function MeetingPageClientInner({ meeting }: MeetingPageClientProps) {
   const [lobbyStream, setLobbyStream] = useState<MediaStream | null>(null);
   const [participantId, setParticipantId] = useState<number | null>(null);
   const [myRole, setMyRole] = useState<"host" | "participant">("participant");
+
+  if (meeting.status === "ended") {
+    return <MeetingEnded meeting={meeting} />;
+  }
 
   if (showLobby) {
     return (

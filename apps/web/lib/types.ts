@@ -35,7 +35,8 @@ export interface RecentMeeting {
   id: number;
   meeting_id: number;
   user_id: number;
-  joined_at: string;
+  joined_at: string | null;
+  list_type: "joined" | "missed";
   meeting: Meeting;
 }
 

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import BaseModel, ConfigDict
 
@@ -91,5 +91,6 @@ class RecentMeetingRead(BaseModel):
     id: int
     meeting_id: int
     user_id: int
-    joined_at: datetime
+    joined_at: datetime | None = None
+    list_type: str = "joined"  # joined | missed
     meeting: MeetingRead

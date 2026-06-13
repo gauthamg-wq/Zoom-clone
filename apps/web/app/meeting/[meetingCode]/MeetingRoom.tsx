@@ -426,6 +426,7 @@ export function MeetingRoom({
     <div className="meeting-root">
       <MeetingHeader
         meetingCode={meeting.meeting_code}
+        inviteLink={meeting.invite_link}
         isConnected={isConnected}
       />
 
@@ -447,7 +448,7 @@ export function MeetingRoom({
 
         {isSidebarOpen && (
           <ParticipantsSidebar
-            meetingCode={meeting.meeting_code}
+            meeting={meeting}
             localName={displayName}
             isHost={isHost}
             remoteParticipants={remoteParticipants}

@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ZoomButton } from "@/components/ui/zoom-button";
+import { CopyInviteLink } from "@/components/meeting/CopyInviteLink";
 import { api } from "@/lib/api";
+import { formatMeetingCode } from "@/lib/meeting-code";
 import type { Meeting } from "@/lib/types";
 
 interface PreJoinLobbyProps {
@@ -139,7 +142,10 @@ export function PreJoinLobby({
         participant.id,
         participant.role as "host" | "participant",
       );
-    } catch {
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to join meeting",
+      );
       setJoining(false);
     }
   }
@@ -155,7 +161,7 @@ export function PreJoinLobby({
             {meeting.title}
           </h1>
           <p className="text-gray-500 text-sm font-mono">
-            {meeting.meeting_code}
+            {formatMeetingCode(meeting.meeting_code)}
           </p>
         </div>
 
@@ -269,6 +275,7 @@ export function PreJoinLobby({
 
             {/* Actions */}
             <div className="flex flex-col gap-3 pt-2">
+              <CopyInviteLink meeting={meeting} variant="lobby" />
               <ZoomButton
                 className="w-full"
                 onClick={() => void handleJoin()}

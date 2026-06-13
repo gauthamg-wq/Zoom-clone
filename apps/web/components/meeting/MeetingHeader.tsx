@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { CopyInviteLink } from "@/components/meeting/CopyInviteLink";
+import { formatMeetingCode } from "@/lib/meeting-code";
 
 interface MeetingHeaderProps {
   meetingCode: string;
+  inviteLink: string | null;
   isConnected: boolean;
 }
 
@@ -18,40 +21,32 @@ function formatElapsed(seconds: number): string {
 
 export function MeetingHeader({
   meetingCode,
+  inviteLink,
   isConnected,
 }: MeetingHeaderProps) {
   const [elapsed, setElapsed] = useState(0);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  function handleCopyCode() {
-    navigator.clipboard.writeText(meetingCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-3 sm:px-5 h-12 sm:h-14 flex items-center justify-between shrink-0">
-      {/* Meeting code — click to copy */}
-      <button
-        onClick={handleCopyCode}
-        className="flex items-center gap-1.5 text-gray-400 hover:text-white transition group"
-        title="Click to copy meeting code"
-      >
-        <span className="font-mono text-xs sm:text-sm">{meetingCode}</span>
-        {copied ? (
-          <Check className="w-3 h-3 text-green-400" />
-        ) : (
-          <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition" />
-        )}
-      </button>
+    <header className="bg-gray-900 border-b border-gray-800 px-3 sm:px-5 h-12 sm:h-14 flex items-center justify-between shrink-0 gap-2">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-1.5 text-gray-400 shrink-0">
+          <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+          <span className="font-mono text-xs sm:text-sm text-gray-300">
+            {formatMeetingCode(meetingCode)}
+          </span>
+        </div>
+        <CopyInviteLink
+          meeting={{ meeting_code: meetingCode, invite_link: inviteLink }}
+          variant="header"
+        />
+      </div>
 
-      {/* Timer + connection dot */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${
             isConnected ? "bg-green-400" : "bg-yellow-500 animate-pulse"

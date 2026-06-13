@@ -14,14 +14,24 @@ import {
 } from "@/components/ui/zoom-card";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { CopyInviteLink } from "@/components/meeting/CopyInviteLink";
+import type { Meeting } from "@/lib/types";
 
-const schema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
-  duration_minutes: z.coerce.number().min(15, "Minimum 15 minutes"),
-});
+const schema = z
+  .object({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().optional(),
+    date: z.string().min(1, "Date is required"),
+    time: z.string().min(1, "Time is required"),
+    duration_minutes: z.coerce.number().min(15, "Minimum 15 minutes"),
+  })
+  .refine(
+    (data) => {
+      const scheduled = new Date(`${data.date}T${data.time}:00`);
+      return scheduled > new Date();
+    },
+    { message: "Meeting must be scheduled in the future", path: ["date"] },
+  );
 
 type FormValues = z.infer<typeof schema>;
 
@@ -31,6 +41,9 @@ export function ScheduleMeetingForm() {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [scheduledMeeting, setScheduledMeeting] = useState<Meeting | null>(
+    null,
+  );
 
   const {
     register,
@@ -49,16 +62,17 @@ export function ScheduleMeetingForm() {
         `${data.date}T${data.time}:00`,
       ).toISOString();
 
-      await api.scheduleMeeting({
+      const meeting = await api.scheduleMeeting({
         title: data.title,
         description: data.description || undefined,
         scheduled_start_time,
         duration_minutes: data.duration_minutes,
       });
 
+      setScheduledMeeting(meeting);
       setSuccess(true);
       toast.success("Meeting scheduled successfully!");
-      setTimeout(() => router.push("/dashboard"), 1200);
+      setTimeout(() => router.push("/dashboard"), 3000);
     } catch (err: unknown) {
       setSubmitError(
         err instanceof Error ? err.message : "Failed to schedule meeting",
@@ -72,11 +86,15 @@ export function ScheduleMeetingForm() {
         <ZoomCardTitle>Schedule a Meeting</ZoomCardTitle>
       </ZoomCardHeader>
       <ZoomCardContent>
-        {success ? (
-          <div className="py-6 text-center space-y-2">
+        {success && scheduledMeeting ? (
+          <div className="py-6 text-center space-y-4">
             <div className="text-4xl">✅</div>
             <p className="font-semibold text-foreground">Meeting scheduled!</p>
             <p className="text-sm text-muted-foreground">
+              Share the invite link with participants:
+            </p>
+            <CopyInviteLink meeting={scheduledMeeting} variant="inline" />
+            <p className="text-xs text-muted-foreground">
               Redirecting to dashboard…
             </p>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,15 +12,14 @@ import {
   ZoomCardHeader,
   ZoomCardTitle,
 } from "@/components/ui/zoom-card";
+import { ZoomSkeleton } from "@/components/ui/zoom-skeleton";
 import { api } from "@/lib/api";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
+import { formatMeetingCode, parseMeetingCode } from "@/lib/meeting-code";
 import type { Meeting } from "@/lib/types";
 
 const codeSchema = z.object({
-  code: z
-    .string()
-    .min(9, "Meeting code must be at least 9 characters")
-    .max(11, "Meeting code too long"),
+  code: z.string().min(1, "Meeting ID or invite link is required"),
 });
 
 const nameSchema = z.object({
@@ -36,13 +35,11 @@ interface JoinMeetingFormProps {
 
 export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
   const router = useRouter();
-  const [step, setStep] = useState<"code" | "name">(
-    initialCode ? "name" : "code",
-  );
+  const [step, setStep] = useState<"code" | "name">("code");
   const [meeting, setMeeting] = useState<Meeting | null>(null);
-  const [meetingCode, setMeetingCode] = useState(initialCode ?? "");
+  const [meetingCode, setMeetingCode] = useState("");
   const [apiError, setApiError] = useState<string | null>(null);
-  const [joining, setJoining] = useState(false);
+  const [validating, setValidating] = useState(!!initialCode);
 
   const codeForm = useForm<CodeForm>({
     resolver: zodResolver(codeSchema),
@@ -54,36 +51,67 @@ export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
     defaultValues: { display_name: DEFAULT_DISPLAY_NAME },
   });
 
-  async function onCodeSubmit(data: CodeForm) {
+  async function validateAndAdvance(rawInput: string) {
     setApiError(null);
-    const cleanCode = data.code.replace(/-/g, "");
+    const parsed = parseMeetingCode(rawInput);
+    if (!parsed) {
+      setApiError("Enter a valid 9-digit meeting ID or invite link");
+      return false;
+    }
     try {
-      const found = await api.getMeeting(cleanCode);
+      const found = await api.getMeeting(parsed);
       setMeeting(found);
-      setMeetingCode(cleanCode);
+      setMeetingCode(parsed);
       setStep("name");
+      return true;
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : "Meeting not found");
+      return false;
     }
   }
 
-  async function onNameSubmit(data: NameForm) {
-    setApiError(null);
-    setJoining(true);
-    try {
-      const { participant } = await api.joinMeeting(
-        meetingCode,
-        data.display_name,
-      );
-      router.push(
-        `/meeting/${meetingCode}?name=${encodeURIComponent(data.display_name)}&participantId=${participant.id}`,
-      );
-    } catch (err: unknown) {
-      setApiError(
-        err instanceof Error ? err.message : "Failed to join meeting",
-      );
-      setJoining(false);
-    }
+  useEffect(() => {
+    if (!initialCode) return;
+    let cancelled = false;
+    void (async () => {
+      setValidating(true);
+      const ok = await validateAndAdvance(initialCode);
+      if (!cancelled && !ok) {
+        setStep("code");
+        codeForm.setValue("code", initialCode);
+      }
+      if (!cancelled) setValidating(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCode]);
+
+  async function onCodeSubmit(data: CodeForm) {
+    setValidating(true);
+    await validateAndAdvance(data.code);
+    setValidating(false);
+  }
+
+  function onNameSubmit(data: NameForm) {
+    router.push(
+      `/meeting/${meetingCode}?name=${encodeURIComponent(data.display_name)}`,
+    );
+  }
+
+  if (validating && step === "code") {
+    return (
+      <ZoomCard className="w-full max-w-md mx-auto">
+        <ZoomCardHeader>
+          <ZoomCardTitle>Join a Meeting</ZoomCardTitle>
+        </ZoomCardHeader>
+        <ZoomCardContent className="space-y-3">
+          <ZoomSkeleton className="h-10 w-full" />
+          <ZoomSkeleton className="h-10 w-full" />
+        </ZoomCardContent>
+      </ZoomCard>
+    );
   }
 
   return (
@@ -103,11 +131,11 @@ export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
           >
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
-                Meeting ID
+                Meeting ID or invite link
               </label>
               <input
                 {...codeForm.register("code")}
-                placeholder="123-456-789"
+                placeholder="123-456-789 or https://…/meeting/123456789"
                 className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
               />
               {codeForm.formState.errors.code && (
@@ -120,9 +148,11 @@ export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
             <ZoomButton
               type="submit"
               className="w-full"
-              disabled={codeForm.formState.isSubmitting}
+              disabled={codeForm.formState.isSubmitting || validating}
             >
-              {codeForm.formState.isSubmitting ? "Checking…" : "Continue"}
+              {codeForm.formState.isSubmitting || validating
+                ? "Checking…"
+                : "Continue"}
             </ZoomButton>
           </form>
         ) : (
@@ -131,9 +161,9 @@ export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
             className="space-y-4"
           >
             <div className="text-sm text-muted-foreground">
-              Meeting code:{" "}
+              Meeting ID:{" "}
               <span className="font-mono font-medium text-foreground">
-                {meetingCode}
+                {formatMeetingCode(meetingCode)}
               </span>
             </div>
             <div>
@@ -163,8 +193,8 @@ export function JoinMeetingForm({ initialCode }: JoinMeetingFormProps) {
               >
                 Back
               </ZoomButton>
-              <ZoomButton type="submit" className="flex-1" disabled={joining}>
-                {joining ? "Joining…" : "Join Now"}
+              <ZoomButton type="submit" className="flex-1">
+                Join Now
               </ZoomButton>
             </div>
           </form>

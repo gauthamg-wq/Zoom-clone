@@ -1,10 +1,11 @@
 "use client";
 
 import { Crown, MicOff, UserX, VideoOff, X } from "lucide-react";
-import type { RemoteParticipant, WSMessage } from "@/lib/types";
+import { CopyInviteLink } from "@/components/meeting/CopyInviteLink";
+import type { Meeting, RemoteParticipant, WSMessage } from "@/lib/types";
 
 interface ParticipantsSidebarProps {
-  meetingCode: string;
+  meeting: Pick<Meeting, "meeting_code" | "invite_link">;
   localName: string;
   isHost: boolean;
   remoteParticipants: RemoteParticipant[];
@@ -13,6 +14,7 @@ interface ParticipantsSidebarProps {
 }
 
 export function ParticipantsSidebar({
+  meeting,
   localName,
   isHost,
   remoteParticipants,
@@ -51,6 +53,10 @@ export function ParticipantsSidebar({
         >
           <X className="w-4 h-4" />
         </button>
+      </div>
+
+      <div className="px-4 py-3 border-b border-gray-800">
+        <CopyInviteLink meeting={meeting} variant="panel" />
       </div>
 
       {/* List */}

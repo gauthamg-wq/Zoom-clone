@@ -12,7 +12,6 @@ import {
   VideoOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ZoomButton } from "@/components/ui/zoom-button";
 
 interface ControlBarProps {
   isMuted: boolean;
@@ -34,11 +33,13 @@ function ControlButton({
   onClick,
   active = true,
   title,
+  className,
   children,
 }: {
   onClick: () => void;
   active?: boolean;
   title: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -46,10 +47,11 @@ function ControlButton({
       onClick={onClick}
       title={title}
       className={cn(
-        "w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition shrink-0",
+        "w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors shrink-0 cursor-pointer",
         active
           ? "bg-gray-700 hover:bg-gray-600 text-white"
           : "bg-red-600 hover:bg-red-500 text-white",
+        className,
       )}
     >
       {children}
@@ -73,21 +75,28 @@ export function ControlBar({
   onEnd,
 }: ControlBarProps) {
   return (
-    <footer className="bg-gray-900 border-t border-gray-800 h-20 flex items-center justify-between px-3 sm:px-6 shrink-0">
-      {/* Left spacer — hidden on mobile to maximise control space */}
-      <div className="hidden sm:flex flex-1" />
-
-      {/* Center controls */}
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto max-w-full">
+    /*
+     * Layout: justify-between keeps media controls on the left and Leave/End
+     * anchored to the right WITHOUT overflow scrolling.  Scrollable containers
+     * on touch screens delay or swallow tap events while the browser decides
+     * whether the gesture is a scroll — removing overflow-x-auto fixes that.
+     *
+     * Button counts on mobile: Mic + Video + Participants + Chat = 4 × 36px
+     * + 3 × 6px gaps = 162px.  The right section (Leave / End) needs ~90px.
+     * Total ≈ 260px which easily fits a 375px phone screen.
+     */
+    <footer className="bg-gray-900 border-t border-gray-800 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 shrink-0">
+      {/* ── Left: media + utility controls ─────────────────────────────── */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <ControlButton
           onClick={onToggleAudio}
           active={!isMuted}
           title={isMuted ? "Unmute" : "Mute"}
         >
           {isMuted ? (
-            <MicOff className="w-5 h-5" />
+            <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <Mic className="w-5 h-5" />
+            <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </ControlButton>
 
@@ -97,71 +106,77 @@ export function ControlBar({
           title={isVideoOn ? "Stop Video" : "Start Video"}
         >
           {isVideoOn ? (
-            <Video className="w-5 h-5" />
+            <Video className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <VideoOff className="w-5 h-5" />
+            <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </ControlButton>
 
+        {/* getDisplayMedia is not supported in mobile browsers — hide on xs */}
         <ControlButton
           onClick={onToggleScreenShare}
           active={!isScreenSharing}
           title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
+          className="hidden sm:flex"
         >
           {isScreenSharing ? (
-            <MonitorX className="w-5 h-5" />
+            <MonitorX className="w-4 h-4 sm:w-5 sm:h-5" />
           ) : (
-            <Monitor className="w-5 h-5" />
+            <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
           )}
         </ControlButton>
 
         <ControlButton onClick={onToggleSidebar} title="Participants">
-          <Users className="w-5 h-5" />
+          <Users className="w-4 h-4 sm:w-5 sm:h-5" />
         </ControlButton>
 
         <div className="relative">
           <ControlButton onClick={onToggleChat} title="Chat">
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
           </ControlButton>
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 leading-none pointer-events-none">
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none pointer-events-none">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
         </div>
 
         {isHost && onMuteAll && (
-          <ControlButton onClick={onMuteAll} title="Mute All Participants">
-            <UserX className="w-5 h-5" />
+          <ControlButton
+            onClick={onMuteAll}
+            title="Mute All Participants"
+            className="hidden sm:flex"
+          >
+            <UserX className="w-4 h-4 sm:w-5 sm:h-5" />
           </ControlButton>
         )}
       </div>
 
-      {/* Right: Leave/End */}
-      <div className="flex-1 flex justify-end gap-2 sm:flex-1">
+      {/* ── Right: Leave / End — always visible ─────────────────────────── */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {isHost ? (
           <>
-            <ZoomButton
-              variant="outline"
-              size="sm"
-              className="border-red-600 text-red-400 hover:bg-red-600/10"
+            {/* "Leave" as a subtle text button saves horizontal space for the End button */}
+            <button
               onClick={onLeave}
+              className="cursor-pointer text-red-400 hover:text-red-300 transition-colors text-xs sm:text-sm font-medium px-1.5 sm:px-2 py-1 rounded"
             >
               Leave
-            </ZoomButton>
-            <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
-              End for All
-            </ZoomButton>
+            </button>
+            <button
+              onClick={onEnd}
+              className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white transition-colors text-xs sm:text-sm font-semibold rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 leading-none"
+            >
+              End
+            </button>
           </>
         ) : (
-          <ZoomButton
-            variant="outline"
-            size="sm"
-            className="border-red-600 text-red-400 hover:bg-red-600/10"
+          <button
             onClick={onLeave}
+            className="cursor-pointer bg-red-600 hover:bg-red-500 active:bg-red-700 text-white transition-colors text-xs sm:text-sm font-semibold rounded-lg px-2.5 sm:px-3.5 py-1.5 sm:py-2 leading-none"
           >
-            Leave Meeting
-          </ZoomButton>
+            Leave
+          </button>
         )}
       </div>
     </footer>

@@ -155,6 +155,10 @@
   html {
     @apply font-sans bg-background;
   }
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
 }
 
 /*
@@ -196,7 +200,9 @@
   }
 
   .meeting-root {
-    height: 100vh;
+    height: 100vh; /* fallback for browsers without dvh support */
+    height: 100dvh; /* dynamic viewport height — correct on iOS Safari where
+                             100vh exceeds the visible area when the address bar shows */
     overflow: hidden;
     display: flex;
     flex-direction: column;

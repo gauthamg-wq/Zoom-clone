@@ -149,18 +149,37 @@ export function MeetingRoom({
           break;
 
         case "participant-joined":
-          setRemoteParticipants((prev) => [
-            ...prev,
-            {
-              clientId: ev.clientId,
-              displayName: ev.displayName,
-              role: ev.role,
-              is_muted: false,
-              is_video_on: true,
-              is_screen_sharing: false,
-              stream: null,
-            },
-          ]);
+          // Upsert — if this clientId is already present (e.g. Strict Mode causes a
+          // double join-room) update in place instead of appending a duplicate tile.
+          setRemoteParticipants((prev) => {
+            const exists = prev.some((p) => p.clientId === ev.clientId);
+            if (exists) {
+              return prev.map((p) =>
+                p.clientId === ev.clientId
+                  ? {
+                      ...p,
+                      displayName: ev.displayName,
+                      role: ev.role,
+                      is_muted: ev.is_muted,
+                      is_video_on: ev.is_video_on,
+                      is_screen_sharing: ev.is_screen_sharing,
+                    }
+                  : p,
+              );
+            }
+            return [
+              ...prev,
+              {
+                clientId: ev.clientId,
+                displayName: ev.displayName,
+                role: ev.role,
+                is_muted: ev.is_muted,
+                is_video_on: ev.is_video_on,
+                is_screen_sharing: ev.is_screen_sharing,
+                stream: null,
+              },
+            ];
+          });
           break;
 
         case "participant-left":
@@ -326,6 +345,23 @@ export function MeetingRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Sync initial media state with the server ──────────────────────────────
+  // The backend initialises every ParticipantState with is_video_on=True and
+  // is_muted=False.  If the user joined with video/audio already off (lobby
+  // state), or if React Strict Mode's double-mount causes a re-join that resets
+  // those defaults, we push the real values each time the stream or connection
+  // becomes ready.
+  //
+  // Sending on every isMuted/isVideoOn change is intentional: it acts as both
+  // an initial sync AND a redundancy layer for normal toggles.  The backend
+  // update is idempotent (same value → same broadcast → no visible UI change
+  // for remote peers), so the extra event is harmless.
+  useEffect(() => {
+    if (!localStream || !isConnected) return;
+    send({ event: "toggle-audio", isMuted });
+    send({ event: "toggle-video", isVideoOn });
+  }, [isConnected, isMuted, isVideoOn, localStream, send]);
+
   // ── Toggle wrappers that also signal over WS ──────────────────────────────
   const handleToggleAudio = useCallback(() => {
     toggleAudio();
@@ -390,10 +426,7 @@ export function MeetingRoom({
     <div className="meeting-root">
       <MeetingHeader
         meetingCode={meeting.meeting_code}
-        isHost={isHost}
         isConnected={isConnected}
-        onLeave={handleLeave}
-        onEnd={handleEnd}
       />
 
       {error && (

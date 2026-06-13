@@ -65,6 +65,11 @@ async def signaling_endpoint(
                             "clientId": client_id,
                             "displayName": participant.display_name,
                             "role": participant.role,
+                            # Include live media state so remote peers can render
+                            # the correct initial tile (avatar vs video, mute badge).
+                            "is_muted": participant.is_muted,
+                            "is_video_on": participant.is_video_on,
+                            "is_screen_sharing": participant.is_screen_sharing,
                         },
                         exclude=client_id,
                     )

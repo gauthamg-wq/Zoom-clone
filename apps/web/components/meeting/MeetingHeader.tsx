@@ -2,14 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
-import { ZoomButton } from "@/components/ui/zoom-button";
 
 interface MeetingHeaderProps {
   meetingCode: string;
-  isHost: boolean;
   isConnected: boolean;
-  onLeave: () => void;
-  onEnd: () => void;
 }
 
 function formatElapsed(seconds: number): string {
@@ -22,10 +18,7 @@ function formatElapsed(seconds: number): string {
 
 export function MeetingHeader({
   meetingCode,
-  isHost,
   isConnected,
-  onLeave,
-  onEnd,
 }: MeetingHeaderProps) {
   const [elapsed, setElapsed] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -42,58 +35,32 @@ export function MeetingHeader({
   }
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-4 h-14 flex items-center justify-between shrink-0">
-      {/* Meeting code */}
+    <header className="bg-gray-900 border-b border-gray-800 px-3 sm:px-5 h-12 sm:h-14 flex items-center justify-between shrink-0">
+      {/* Meeting code — click to copy */}
       <button
         onClick={handleCopyCode}
-        className="flex items-center gap-2 text-gray-300 hover:text-white transition group"
+        className="flex items-center gap-1.5 text-gray-400 hover:text-white transition group"
         title="Click to copy meeting code"
       >
-        <span className="font-mono text-sm">{meetingCode}</span>
+        <span className="font-mono text-xs sm:text-sm">{meetingCode}</span>
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-green-400" />
+          <Check className="w-3 h-3 text-green-400" />
         ) : (
-          <Copy className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition" />
+          <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition" />
         )}
       </button>
 
-      {/* Timer + connection indicator */}
+      {/* Timer + connection dot */}
       <div className="flex items-center gap-2">
         <span
-          className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-400" : "bg-gray-500"}`}
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+            isConnected ? "bg-green-400" : "bg-yellow-500 animate-pulse"
+          }`}
           title={isConnected ? "Connected" : "Connecting…"}
         />
-        <span className="text-gray-300 text-sm font-mono tabular-nums">
+        <span className="text-gray-400 text-xs sm:text-sm font-mono tabular-nums">
           {formatElapsed(elapsed)}
         </span>
-      </div>
-
-      {/* Leave / End */}
-      <div className="flex items-center gap-2">
-        {isHost ? (
-          <>
-            <ZoomButton
-              variant="outline"
-              size="sm"
-              className="border-red-600 text-red-400 hover:bg-red-600/10"
-              onClick={onLeave}
-            >
-              Leave
-            </ZoomButton>
-            <ZoomButton variant="destructive" size="sm" onClick={onEnd}>
-              End for All
-            </ZoomButton>
-          </>
-        ) : (
-          <ZoomButton
-            variant="outline"
-            size="sm"
-            className="border-red-600 text-red-400 hover:bg-red-600/10"
-            onClick={onLeave}
-          >
-            Leave
-          </ZoomButton>
-        )}
       </div>
     </header>
   );

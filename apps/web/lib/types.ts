@@ -104,6 +104,9 @@ export type WSEvent =
       clientId: string;
       displayName: string;
       role: string;
+      is_muted: boolean;
+      is_video_on: boolean;
+      is_screen_sharing: boolean;
     }
   | { event: "participant-left"; clientId: string }
   | { event: "participant-audio-updated"; clientId: string; isMuted: boolean }

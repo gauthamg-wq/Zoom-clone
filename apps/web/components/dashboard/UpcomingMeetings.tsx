@@ -6,13 +6,14 @@ import { format, isToday, isTomorrow } from "date-fns";
 import { Clock, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { ZoomButton } from "@/components/ui/zoom-button";
+import { parseApiDateTime } from "@/lib/datetime";
 import { getInviteLink } from "@/lib/invite-link";
 import { hasMeetingStarted, isMeetingWindowOpen } from "@/lib/meeting-window";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { Meeting } from "@/lib/types";
 
 function formatMeetingTime(iso: string): string {
-  const date = new Date(iso);
+  const date = parseApiDateTime(iso);
   const timeStr = format(date, "h:mm a");
   if (isToday(date)) return `Today, ${timeStr}`;
   if (isTomorrow(date)) return `Tomorrow, ${timeStr}`;

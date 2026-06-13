@@ -4,15 +4,21 @@ import { useRouter } from "next/navigation";
 import { format, formatDistanceToNow } from "date-fns";
 import { Clock } from "lucide-react";
 import { ZoomButton } from "@/components/ui/zoom-button";
+import { parseApiDateTime } from "@/lib/datetime";
 import { DEFAULT_DISPLAY_NAME } from "@/lib/constants";
 import type { RecentMeeting } from "@/lib/types";
 
 function formatDisplayTime(rm: RecentMeeting): string {
   if (rm.list_type === "missed" && rm.meeting.scheduled_start_time) {
-    return format(new Date(rm.meeting.scheduled_start_time), "MMM d, h:mm a");
+    return format(
+      parseApiDateTime(rm.meeting.scheduled_start_time),
+      "MMM d, h:mm a",
+    );
   }
   if (rm.joined_at) {
-    return formatDistanceToNow(new Date(rm.joined_at), { addSuffix: true });
+    return formatDistanceToNow(parseApiDateTime(rm.joined_at), {
+      addSuffix: true,
+    });
   }
   return "";
 }

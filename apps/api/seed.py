@@ -30,7 +30,7 @@ def seed() -> None:
             print("Meetings already seeded — skipping.")
             return
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         def make_meeting(**kwargs) -> models.Meeting:
             code = generate_meeting_code(db)

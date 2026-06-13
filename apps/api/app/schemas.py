@@ -1,6 +1,15 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
+
+
+def _serialize_utc_datetime(dt: datetime | None) -> str | None:
+    """Emit UTC ISO-8601 with Z suffix so browsers parse correctly."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return f"{dt.isoformat()}Z"
 
 
 class UserBase(BaseModel):
@@ -41,6 +50,10 @@ class MeetingRead(MeetingBase):
     invite_link: str | None = None
     created_at: datetime
 
+    @field_serializer("scheduled_start_time", "created_at")
+    def serialize_utc_datetimes(self, dt: datetime | None) -> str | None:
+        return _serialize_utc_datetime(dt)
+
 
 class ParticipantBase(BaseModel):
     display_name: str
@@ -57,6 +70,10 @@ class ParticipantRead(ParticipantBase):
     user_id: int | None = None
     joined_at: datetime
     left_at: datetime | None = None
+
+    @field_serializer("joined_at", "left_at")
+    def serialize_utc_datetimes(self, dt: datetime | None) -> str | None:
+        return _serialize_utc_datetime(dt)
 
 
 class ScheduleMeetingCreate(BaseModel):
@@ -94,3 +111,7 @@ class RecentMeetingRead(BaseModel):
     joined_at: datetime | None = None
     list_type: str = "joined"  # joined | missed
     meeting: MeetingRead
+
+    @field_serializer("joined_at")
+    def serialize_joined_at(self, dt: datetime | None) -> str | None:
+        return _serialize_utc_datetime(dt)
